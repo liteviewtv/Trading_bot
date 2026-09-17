@@ -1,4 +1,4 @@
-"""Long-running paper-trading entry point with Telegram command polling."""
+"""Long-running MT5 demo bot entry point with Telegram control."""
 
 import json
 import logging
@@ -6,7 +6,7 @@ import os
 import time
 from pathlib import Path
 
-from src.runner import run_cycle
+from src.mt5_auto_cycle import run_auto_demo_cycle
 from src.telegram_polling import TelegramPollingBot
 
 ROOT = Path(__file__).resolve().parent
@@ -20,10 +20,13 @@ def load_universe():
 
 def main():
     cfg = load_universe()
-    symbols = cfg["symbols"]
+    assets = tuple(cfg.get("symbols") or cfg.get("assets") or ())
     execute = bool(cfg.get("execute_paper_orders", False))
     max_cycles = int(os.getenv("BOT_MAX_CYCLES", "1"))
     interval = int(os.getenv("BOT_INTERVAL_SECONDS", "300"))
+    max_orders = int(cfg.get("max_trades_per_cycle", 2))
+    max_positions = int(cfg.get("max_concurrent_positions", 5))
+
     telegram = TelegramPollingBot()
     telegram_enabled = telegram.configured
     cycle = 0
@@ -34,18 +37,22 @@ def main():
             if telegram_enabled:
                 telegram.poll_once()
 
-            cycle_execute = execute and not telegram.control.paused
             if execute and telegram.control.paused:
-                logging.info("Paper trading paused via Telegram; skipping new orders")
-                results = []
+                logging.info("MT5 demo trading paused via Telegram; skipping new orders")
+                result = run_auto_demo_cycle(
+                    assets=assets, execute=False, max_orders=max_orders,
+                    max_open_positions=max_positions, control=telegram.control,
+                )
             else:
-                results = run_cycle(symbols, execute=cycle_execute)
+                result = run_auto_demo_cycle(
+                    assets=assets, execute=execute, max_orders=max_orders,
+                    max_open_positions=max_positions, control=telegram.control,
+                )
 
-            logging.info("Cycle %d completed: %d signal(s)", cycle, len(results))
-            for result in results:
-                logging.info("%s", result)
+            logging.info("Cycle %d: scanned=%d executed=%d skipped=%d",
+                         cycle, len(result.scanned), len(result.executed), len(result.skipped))
         except Exception:
-            logging.exception("Trading cycle failed")
+            logging.exception("MT5 demo cycle failed")
 
         if max_cycles == 0:
             time.sleep(max(1, int(os.getenv("TELEGRAM_POLL_INTERVAL_SECONDS", "10"))))

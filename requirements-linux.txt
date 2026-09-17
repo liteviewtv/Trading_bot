@@ -1,0 +1,8 @@
+# Linux trading-engine dependencies.
+# Deliberately excludes MetaTrader5: the official MT5 Python package
+# communicates with a running MT5 terminal and is kept in requirements.txt
+# for the local/Windows execution backend.
+pandas>=2.2,<3
+numpy>=2.0,<3
+python-dotenv>=1.0,<2
+requests>=2.32,<3

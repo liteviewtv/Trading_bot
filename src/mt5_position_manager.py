@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .mt5_client import account_info, positions
-
 
 @dataclass(frozen=True)
 class PositionState:
@@ -15,13 +13,17 @@ class PositionState:
     reason: str
 
 
-def inspect_positions(symbol: str, max_open_positions: int = 5) -> PositionState:
+def inspect_positions(symbol: str, max_open_positions: int = 5, *, account=None, current_positions=None) -> PositionState:
+    """Return whether a new position can be opened."""
     if max_open_positions < 0:
         raise ValueError("max_open_positions must be non-negative")
-    account = account_info()
+    if account is None or current_positions is None:
+        from .mt5_client import account_info, positions
+        account = account_info()
+        current_positions = positions()
     if account is None:
         raise RuntimeError("MT5 account information is unavailable")
-    current = list(positions())
+    current = list(current_positions)
     symbols = frozenset(getattr(p, "symbol", "") for p in current)
     if symbol in symbols:
         return PositionState(len(current), symbols, False, "Position already exists for symbol")

@@ -1,4 +1,4 @@
-"""Safe paper-trading cycle: scan -> signal -> risk -> optional paper order."""
+"""Safe paper-trading cycle with position monitoring and journaling."""
 
 import json
 from pathlib import Path
@@ -7,28 +7,36 @@ from .alpaca_client import create_trading_client
 from .config import Settings
 from .execution import submit_paper_buy
 from .market_data import create_data_client, get_recent_daily_bars
+from .position_manager import monitor_positions
 from .strategy import generate_signal
+from .trade_store import TradeStore
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def load_strategy():
-    with open(ROOT / "config" / "strategy.json", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def load_universe():
-    with open(ROOT / "config" / "universe.json", encoding="utf-8") as f:
+def load_json(name):
+    with open(ROOT / "config" / name, encoding="utf-8") as f:
         return json.load(f)
 
 
 def run_cycle(symbols: list[str], execute: bool = False):
-    """Run one cycle with position and per-cycle trade limits."""
+    """Run monitoring, scanning, risk checks, paper execution and journaling."""
     settings = Settings.from_env()
     trading = create_trading_client(settings)
     data = create_data_client(settings)
-    strategy = load_strategy()
-    universe = load_universe()
+    strategy = load_json("strategy.json")
+    universe = load_json("universe.json")
+    store = TradeStore()
+
+    # Monitor existing paper positions before considering new entries.
+    if execute and universe.get("execute_paper_orders", False):
+        for action in monitor_positions(
+            trading,
+            stop_loss_pct=float(universe["stop_loss_pct"]) / 100,
+            take_profit_pct=float(universe["take_profit_pct"]) / 100,
+        ):
+            store.record_event("INFO", "POSITION_EXIT", str(action))
+
     account = trading.get_account()
     equity = float(account.equity)
     open_positions = len(trading.get_all_positions())
@@ -50,6 +58,7 @@ def run_cycle(symbols: list[str], execute: bool = False):
 
         stop = signal.price * (1 - float(universe["stop_loss_pct"]) / 100)
         order_id = None
+        qty = 0
         if execute and universe.get("execute_paper_orders", False):
             order = submit_paper_buy(
                 trading, settings, symbol, signal.price, stop, equity,
@@ -60,8 +69,12 @@ def run_cycle(symbols: list[str], execute: bool = False):
             )
             if order:
                 order_id = str(order.id)
+                qty = int(float(order.qty))
                 open_positions += 1
                 trades_this_cycle += 1
+                store.record_trade(symbol, "BUY", qty, "SUBMITTED", signal.price, order_id, signal.reason)
+
         results.append({"symbol": symbol, "action": signal.action, "price": signal.price, "order_id": order_id})
 
+    store.record_event("INFO", "CYCLE_COMPLETE", f"signals={len(results)} orders={trades_this_cycle}")
     return results

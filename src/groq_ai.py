@@ -21,13 +21,14 @@ class GroqAnalyzer:
     def analyze(self, signal, context: dict | None = None) -> AIAnalysis:
         if not self.api_key:
             raise RuntimeError("GROQ_API_KEY is not configured")
+        market_context = context or {}
         payload = {
             "model": self.model,
             "temperature": 0,
             "response_format": {"type": "json_object"},
             "messages": [
-                {"role": "system", "content": "Analyze trading signals only. Return JSON with decision (BUY, SELL, HOLD), confidence (0 to 1), and reason. Never claim certainty."},
-                {"role": "user", "content": json.dumps({"strategy_signal": getattr(signal, "action", None), "context": context or {}}, default=str)},
+                {"role": "system", "content": "You are a cautious trading-signal analyst. Analyze the strategy signal together with the supplied market context. Return JSON with decision (BUY, SELL, HOLD), confidence (0 to 1), and reason. Never claim certainty. Do not provide position sizing, override risk rules, or place orders."},
+                {"role": "user", "content": json.dumps({"strategy_signal": getattr(signal, "action", None), "market_context": market_context}, default=str)},
             ],
         }
         request = Request(GROQ_URL, data=json.dumps(payload).encode(), headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}, method="POST")

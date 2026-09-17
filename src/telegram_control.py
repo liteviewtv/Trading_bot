@@ -26,4 +26,13 @@ class DemoControl:
                 pnl = getattr(position, "pnl_pct", 0.0)
                 lines.append(f"{symbol} {action} | P&L: {float(pnl):.2f}%")
             return "\n".join(lines)
+        if command.startswith("/help"):
+            return (
+                "🤖 TRADING BOT COMMANDS\n"
+                "/status — paper performance\n"
+                "/positions — open demo positions\n"
+                "/pause — stop new demo trades\n"
+                "/resume — allow new demo trades\n"
+                "/help — show commands"
+            )
         return None

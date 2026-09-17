@@ -1,12 +1,16 @@
-"""MT5-aware strategy adapter.
+"""MT5 strategy adapter with configurable asset-class profiles.
 
-Keeps the existing deterministic strategy intact while converting MT5 candle
-arrays into the DataFrame shape it expects. No orders are submitted here.
+The strategy remains signal-only: it never submits orders.
 """
+
+import json
+from pathlib import Path
 
 import pandas as pd
 
 from .strategy import Signal, generate_signal
+
+_CONFIG = Path(__file__).resolve().parent.parent / "config" / "mt5_strategy.json"
 
 
 def candles_to_dataframe(candles) -> pd.DataFrame:
@@ -21,19 +25,26 @@ def candles_to_dataframe(candles) -> pd.DataFrame:
     return data
 
 
-def generate_mt5_signal(
-    symbol: str,
-    candles,
-    sma_period: int = 20,
-    breakout_lookback: int = 10,
-    min_return_pct: float = 2.0,
-) -> Signal | None:
-    """Generate a signal from MT5 candles using the existing strategy rules."""
+def asset_class(symbol: str) -> str:
+    """Classify common MT5 instruments without requiring broker symbol names."""
+    s = symbol.upper().replace("/", "")
+    if "XAU" in s or "GOLD" in s:
+        return "gold"
+    crypto = ("BTC", "ETH", "SOL", "XRP", "DOGE", "LTC", "ADA")
+    if any(token in s for token in crypto):
+        return "crypto"
+    return "forex"
+
+
+def load_profile(kind: str) -> dict:
+    with _CONFIG.open("r", encoding="utf-8") as fh:
+        config = json.load(fh)
+    return config.get(kind, config["default"])
+
+
+def generate_mt5_signal(symbol: str, candles, **overrides) -> Signal | None:
+    """Generate a signal using an asset-appropriate configurable profile."""
     data = candles_to_dataframe(candles)
-    return generate_signal(
-        symbol=symbol,
-        bars=data,
-        sma_period=sma_period,
-        breakout_lookback=breakout_lookback,
-        min_return_pct=min_return_pct,
-    )
+    params = load_profile(asset_class(symbol)).copy()
+    params.update(overrides)
+    return generate_signal(symbol=symbol, bars=data, **params)

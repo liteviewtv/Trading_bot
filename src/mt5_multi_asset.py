@@ -1,15 +1,14 @@
 """Multi-asset MT5 signal scanner.
 
 Discovers broker-provided symbols instead of assuming exact names for Forex,
-gold, and crypto instruments. This module only evaluates signals; it never
-submits orders.
+gold, and crypto instruments. MT5 is imported lazily through the client so
+Linux CI can test symbol resolution without a Windows MT5 terminal.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .mt5_client import available_instruments, bars, select_symbol
 from .mt5_strategy import generate_mt5_signal
 
 
@@ -25,7 +24,10 @@ DEFAULT_ASSETS = ("EURUSD", "GBPUSD", "USDJPY", "XAUUSD", "BTCUSD", "ETHUSD")
 
 
 def resolve_symbol(requested: str, instruments: list[str] | None = None) -> str | None:
-    instruments = instruments if instruments is not None else available_instruments()
+    if instruments is None:
+        # Import only when a real MT5 scan is requested.
+        from .mt5_client import available_instruments
+        instruments = available_instruments()
     wanted = requested.upper().replace("/", "")
     exact = next((s for s in instruments if s.upper() == wanted), None)
     if exact:
@@ -34,6 +36,8 @@ def resolve_symbol(requested: str, instruments: list[str] | None = None) -> str 
 
 
 def scan_assets(assets=DEFAULT_ASSETS) -> list[AssetResult]:
+    from .mt5_client import available_instruments, bars, select_symbol
+
     instruments = available_instruments()
     results: list[AssetResult] = []
     for requested in assets:

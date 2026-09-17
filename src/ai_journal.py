@@ -23,3 +23,24 @@ def log_ai_decision(path, *, symbol, strategy_action, context, decision, confide
     with target.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, separators=(",", ":"), default=str) + "\n")
     return record
+
+
+def log_paper_outcome(path, *, ai_record, entry, exit, pnl_pct, win):
+    """Append a paper-trade outcome linked to an AI decision."""
+    record = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "type": "paper_outcome",
+        "ai_timestamp": ai_record.get("timestamp"),
+        "symbol": ai_record.get("symbol"),
+        "decision": ai_record.get("decision"),
+        "confidence": ai_record.get("confidence"),
+        "entry": float(entry),
+        "exit": float(exit),
+        "pnl_pct": float(pnl_pct),
+        "win": bool(win),
+    }
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, separators=(",", ":"), default=str) + "\n")
+    return record

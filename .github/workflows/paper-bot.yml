@@ -5,6 +5,10 @@ on:
   schedule:
     - cron: '*/15 * * * 1-5'
 
+concurrency:
+  group: paper-trading-cycle
+  cancel-in-progress: false
+
 jobs:
   paper-cycle:
     runs-on: ubuntu-latest
@@ -14,10 +18,12 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt
-      - name: Run one paper cycle
+      - name: Run paper cycle and Telegram polling
         env:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
           ALPACA_PAPER: 'true'
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           BOT_MAX_CYCLES: '1'
         run: python bot.py

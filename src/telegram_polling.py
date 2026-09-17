@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from .paper_tracker import PaperTrade, summarize_paper_trades
+from .paper_tracker import summarize_paper_trades
 from .telegram_commands import handle_command
 from .telegram_control import DemoControl
 from .telegram_notify import TelegramNotifier
@@ -21,6 +22,7 @@ class TelegramPollingBot:
         self.control = control or DemoControl()
         self.offset = 0
         self.notifier = TelegramNotifier(self.token, self.chat_id)
+        self._started = False
 
     @property
     def configured(self):
@@ -30,16 +32,36 @@ class TelegramPollingBot:
         url = f"https://api.telegram.org/bot{self.token}/{method}"
         body = urlencode(params or {}).encode()
         request = Request(url, data=body, method="POST")
-        with urlopen(request, timeout=self.timeout + 5) as response:
-            result = json.loads(response.read().decode())
+        try:
+            with urlopen(request, timeout=self.timeout + 5) as response:
+                result = json.loads(response.read().decode())
+        except HTTPError as exc:
+            if exc.code == 409 and method == "getUpdates":
+                raise RuntimeError("Telegram polling conflict: another poller or webhook is active") from exc
+            raise
         if not result.get("ok"):
-            raise RuntimeError(f"Telegram API rejected {method}")
+            raise RuntimeError(f"Telegram API rejected {method}: {result.get('description', 'unknown error')}")
         return result.get("result", [])
+
+    def start(self):
+        """Switch this bot to polling mode by removing any configured webhook."""
+        if not self.configured or self._started:
+            return
+        self._request("deleteWebhook", {"drop_pending_updates": "false"})
+        self._started = True
 
     def poll_once(self, summary=None, positions=None):
         if not self.configured:
             return 0
-        updates = self._request("getUpdates", {"offset": self.offset, "timeout": self.timeout})
+        self.start()
+        try:
+            updates = self._request("getUpdates", {"offset": self.offset, "timeout": self.timeout})
+        except RuntimeError as exc:
+            # Keep the trading loop alive while a second runner is being stopped.
+            if str(exc).startswith("Telegram polling conflict:"):
+                self._started = False
+                return 0
+            raise
         handled = 0
         summary = summary or summarize_paper_trades([])
         for update in updates:

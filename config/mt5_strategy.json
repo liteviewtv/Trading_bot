@@ -1,0 +1,22 @@
+{
+  "default": {
+    "sma_period": 50,
+    "breakout_lookback": 20,
+    "min_return_pct": 0.5
+  },
+  "forex": {
+    "sma_period": 50,
+    "breakout_lookback": 20,
+    "min_return_pct": 0.15
+  },
+  "gold": {
+    "sma_period": 50,
+    "breakout_lookback": 20,
+    "min_return_pct": 0.5
+  },
+  "crypto": {
+    "sma_period": 50,
+    "breakout_lookback": 20,
+    "min_return_pct": 1.0
+  }
+}

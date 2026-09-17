@@ -26,11 +26,26 @@ class DemoControl:
                 pnl = getattr(position, "pnl_pct", 0.0)
                 lines.append(f"{symbol} {action} | P&L: {float(pnl):.2f}%")
             return "\n".join(lines)
+        if command.startswith("/symbols"):
+            try:
+                from .mt5_client import available_instruments
+                instruments = available_instruments()
+            except Exception as exc:
+                return f"❌ MT5 symbol discovery failed.\n{exc}"
+            if not instruments:
+                return "📋 MT5 SYMBOLS\nNo instruments returned by the broker."
+            # Keep the Telegram response compact while showing the broker's real names.
+            shown = instruments[:100]
+            message = "📋 MT5 SYMBOLS\n" + "\n".join(shown)
+            if len(instruments) > len(shown):
+                message += f"\n\n…and {len(instruments) - len(shown)} more."
+            return message
         if command.startswith("/help"):
             return (
                 "🤖 TRADING BOT COMMANDS\n"
                 "/status — paper performance\n"
                 "/positions — open demo positions\n"
+                "/symbols — broker MT5 symbols\n"
                 "/pause — stop new demo trades\n"
                 "/resume — allow new demo trades\n"
                 "/help — show commands"

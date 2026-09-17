@@ -3,7 +3,7 @@ name: Paper Trading Cycle
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/15 * * * 1-5'
+    - cron: '0 */6 * * 1-5'
 
 concurrency:
   group: paper-trading-cycle
@@ -12,6 +12,7 @@ concurrency:
 jobs:
   paper-cycle:
     runs-on: ubuntu-latest
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -25,5 +26,6 @@ jobs:
           ALPACA_PAPER: 'true'
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          BOT_MAX_CYCLES: '1'
+          BOT_MAX_CYCLES: '0'
+          TELEGRAM_POLL_INTERVAL_SECONDS: '10'
         run: python bot.py

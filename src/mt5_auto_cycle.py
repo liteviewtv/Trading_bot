@@ -29,8 +29,9 @@ def run_auto_demo_cycle(
     ai_min_confidence: float = 0.60,
     ai_analyzer=None,
     notifier: TelegramNotifier | None = None,
+    control=None,
 ) -> AutoCycleResult:
-    """Scan assets and submit only signals passing optional AI and risk gates."""
+    """Scan assets and submit only signals passing AI and risk gates."""
     if max_orders < 0 or max_open_positions < 0:
         raise ValueError("position/order limits must be non-negative")
     if not 0.0 <= ai_min_confidence <= 1.0:
@@ -50,8 +51,12 @@ def run_auto_demo_cycle(
         try:
             notifier.event(event, details)
         except Exception:
-            # Notifications must never stop or alter the trading cycle.
             pass
+
+    if execute and control is not None and getattr(control, "paused", False):
+        skipped.append("demo trading paused")
+        notify("⏸️ DEMO TRADING PAUSED", "No new paper trades were opened.")
+        return AutoCycleResult(scanned, executed, skipped)
 
     for item in scanned:
         symbol = item.symbol or item.requested

@@ -1,13 +1,12 @@
-"""AI-ready signal analysis interface.
+"""AI-ready signal analysis with an optional local-model adapter.
 
-The default implementation is deterministic and free: it acts as a safety
-filter around the existing strategy. A future local model can implement the
-same interface without changing execution or risk controls.
+The model remains advisory-only: it cannot place orders or bypass risk controls.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol
 
 
 @dataclass(frozen=True)
@@ -18,17 +17,30 @@ class AIAnalysis:
     model: str = "deterministic"
 
 
-class SignalAnalyzer:
-    def analyze(self, signal) -> AIAnalysis:
+class ModelAdapter(Protocol):
+    def analyze(self, signal, context: dict | None = None) -> AIAnalysis: ...
+
+
+class DeterministicAnalyzer:
+    def analyze(self, signal, context: dict | None = None) -> AIAnalysis:
         action = str(getattr(signal, "action", "HOLD")).upper()
         if action not in {"BUY", "SELL"}:
             return AIAnalysis("HOLD", 1.0, "No actionable strategy signal")
-        return AIAnalysis(
-            action,
-            0.50,
-            "AI layer currently confirms the existing strategy signal; no external model is required.",
-        )
+        return AIAnalysis(action, 0.50, "No local model configured; held for safety")
 
 
-def analyze_signal(signal, analyzer: SignalAnalyzer | None = None) -> AIAnalysis:
-    return (analyzer or SignalAnalyzer()).analyze(signal)
+class LocalModelAnalyzer:
+    """Adapter for a local model callable; no paid API dependency."""
+
+    def __init__(self, model_callable):
+        self.model_callable = model_callable
+
+    def analyze(self, signal, context: dict | None = None) -> AIAnalysis:
+        result = self.model_callable(signal, context or {})
+        if not isinstance(result, AIAnalysis):
+            raise TypeError("Local model must return AIAnalysis")
+        return result
+
+
+def analyze_signal(signal, analyzer: ModelAdapter | None = None, context: dict | None = None) -> AIAnalysis:
+    return (analyzer or DeterministicAnalyzer()).analyze(signal, context)

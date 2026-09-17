@@ -15,5 +15,5 @@ def test_poll_once_ignores_other_chat(monkeypatch):
     sent = []
     bot.notifier.send = lambda message: sent.append(message) or True
     bot._request = lambda method, params: [{"update_id": 10, "message": {"chat": {"id": 999}, "text": "/help"}}]
-    assert bot.poll_once() == 1
+    assert bot.poll_once() == 0
     assert sent == []

@@ -24,6 +24,6 @@ def handle_command(command: str, summary: dict, control=None, positions=None) ->
     command = command.strip().split()[0].lower() if command.strip() else ""
     if command.startswith("/status"):
         return status_message(summary)
-    if control is not None and command in {"/pause", "/resume", "/positions", "/help"}:
+    if control is not None and command in {"/pause", "/resume", "/positions", "/symbols", "/help"}:
         return control.handle(command, positions)
     return None

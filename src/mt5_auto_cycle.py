@@ -64,7 +64,10 @@ def run_auto_demo_cycle(
             reason = item.error or "No trading signal"
             skipped.append(f"{item.requested}: no signal")
             journal(symbol, "skipped", reason=reason)
-            notify("⚠️ SIGNAL SKIPPED", f"Symbol: {symbol}\nReason: {reason}")
+            # Routine broker-symbol availability is a diagnostic condition,
+            # not a Telegram alert. Avoid repeating the same message every cycle.
+            if reason != "Symbol unavailable":
+                notify("⚠️ SIGNAL SKIPPED", f"Symbol: {symbol}\nReason: {reason}")
             continue
         if not execute:
             skipped.append(f"{item.requested}: execution disabled")

@@ -29,6 +29,11 @@ def main():
 
     telegram = TelegramPollingBot()
     telegram_enabled = telegram.configured
+    if telegram_enabled:
+        try:
+            telegram.notifier.send("🟢 MT5 BOT ONLINE\nVersion: 5e71cde\nTelegram polling enabled.")
+        except Exception:
+            logging.exception("Unable to send Telegram startup notification")
     cycle = 0
 
     while max_cycles == 0 or cycle < max_cycles:

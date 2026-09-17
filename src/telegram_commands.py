@@ -1,4 +1,4 @@
-"""Pure Telegram command helpers for paper-trading status."""
+"""Telegram command helpers for paper-trading status and controls."""
 
 from __future__ import annotations
 
@@ -20,8 +20,10 @@ def status_message(summary: dict) -> str:
     )
 
 
-def handle_command(command: str, summary: dict) -> str | None:
+def handle_command(command: str, summary: dict, control=None, positions=None) -> str | None:
     command = command.strip().split()[0].lower() if command.strip() else ""
     if command.startswith("/status"):
         return status_message(summary)
+    if control is not None and command in {"/pause", "/resume", "/positions"}:
+        return control.handle(command, positions)
     return None

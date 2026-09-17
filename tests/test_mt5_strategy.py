@@ -21,8 +21,8 @@ def test_asset_classes():
 
 
 def test_candle_normalization():
-    data = candles_to_dataframe(make_bars([10.0] * 25))
-    assert list(data["close"]) == [10.0] * 25
+    data = candles_to_dataframe(make_bars([10.0] * 55))
+    assert list(data["close"]) == [10.0] * 55
 
 
 def test_missing_candle_column_is_rejected():
@@ -34,7 +34,8 @@ def test_missing_candle_column_is_rejected():
 
 
 def test_mt5_strategy_can_generate_sell_signal():
-    values = [10.0] * 20 + [9.7, 9.6, 9.5, 9.4, 9.0]
+    # The EURUSD profile requires 50 SMA bars plus a breakout bar.
+    values = [10.0] * 50 + [9.7, 9.6, 9.5, 9.4, 9.0]
     signal = generate_mt5_signal("EURUSD", make_bars(values))
     assert signal is not None
     assert signal.action == "SELL"

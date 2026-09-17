@@ -8,6 +8,7 @@ from .mt5_multi_asset import AssetResult, DEFAULT_ASSETS, scan_assets
 from .mt5_demo_cycle import run_demo_cycle
 from .mt5_position_manager import inspect_positions
 from .trade_journal import append_entry, make_entry
+from .ai_filter import AIFilterDecision, filter_signal
 
 
 @dataclass(frozen=True)
@@ -23,8 +24,14 @@ def run_auto_demo_cycle(
     max_orders: int = 2,
     max_open_positions: int = 5,
     journal_path=None,
+    ai_decisions: dict[str, AIFilterDecision] | None = None,
+    ai_min_confidence: float = 0.60,
 ) -> AutoCycleResult:
-    """Scan assets and optionally submit only permitted demo orders."""
+    """Scan assets and optionally submit only permitted demo orders.
+
+    AI decisions are optional. When supplied, they must match the strategy
+    action and meet the confidence threshold before execution is allowed.
+    """
     if max_orders < 0:
         raise ValueError("max_orders must be non-negative")
     if max_open_positions < 0:
@@ -36,10 +43,8 @@ def run_auto_demo_cycle(
 
     def journal(symbol, event, reason=None, signal=None, result=None):
         if journal_path is not None:
-            append_entry(journal_path, make_entry(
-                event, symbol, reason=reason,
-                action=getattr(signal, "action", None), result=result,
-            ))
+            append_entry(journal_path, make_entry(event, symbol, reason=reason,
+                action=getattr(signal, "action", None), result=result))
 
     for item in scanned:
         symbol = item.symbol or item.requested
@@ -56,6 +61,18 @@ def run_auto_demo_cycle(
             skipped.append(f"{item.requested}: order limit reached")
             journal(symbol, "skipped", reason="order limit reached", signal=item.signal)
             continue
+
+        if ai_decisions is not None:
+            ai_decision = ai_decisions.get(symbol) or ai_decisions.get(item.requested)
+            if ai_decision is None:
+                skipped.append(f"{item.requested}: AI decision unavailable")
+                journal(symbol, "skipped", reason="AI decision unavailable", signal=item.signal)
+                continue
+            filtered = filter_signal(item.signal, ai_decision, ai_min_confidence)
+            if filtered.action == "HOLD":
+                skipped.append(f"{item.requested}: {filtered.reason}")
+                journal(symbol, "skipped", reason=filtered.reason, signal=item.signal)
+                continue
 
         state = inspect_positions(symbol, max_open_positions=max_open_positions)
         if not state.can_open:

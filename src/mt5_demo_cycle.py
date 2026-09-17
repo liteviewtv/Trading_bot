@@ -1,7 +1,7 @@
 """Single-symbol MT5 demo trading cycle.
 
-Builds a signal and, only when explicitly requested, submits it through the
-existing demo-only executor. No live-account execution is permitted.
+MT5-specific modules are imported lazily so strategy-cycle tests can run on
+Linux CI where the MetaTrader 5 terminal/package is unavailable.
 """
 
 from __future__ import annotations
@@ -9,10 +9,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pandas as pd
-
-from .mt5_client import bars, account_info, connect, disconnect, MT5Settings
-from .mt5_execution import calculate_volume, submit_demo_market_order
-from .mt5_strategy import generate_mt5_signal
 
 
 @dataclass(frozen=True)
@@ -25,6 +21,10 @@ class CycleResult:
 
 def run_demo_cycle(symbol: str, execute: bool = False) -> CycleResult:
     """Evaluate one symbol; execution remains opt-in and demo-only."""
+    from .mt5_client import bars, account_info, connect, disconnect, MT5Settings
+    from .mt5_execution import calculate_volume, submit_demo_market_order
+    from .mt5_strategy import generate_mt5_signal
+
     settings = MT5Settings.from_env()
     connect(settings)
     try:

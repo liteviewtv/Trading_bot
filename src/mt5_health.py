@@ -1,17 +1,20 @@
 """MT5 connectivity and symbol health checks. Demo mode only."""
 
-from .mt5_client import MT5Client
+from .mt5_client import account_info, select_symbol
 
 
-def check_mt5(client: MT5Client, symbols: list[str]) -> dict:
-    account = client.account_info()
+def check_mt5(symbols: list[str]) -> dict:
+    """Return connection/account health and broker symbol availability."""
+    account = account_info()
     available = []
     missing = []
     for symbol in symbols:
-        if client.symbol_info(symbol):
+        try:
+            select_symbol(symbol)
             available.append(symbol)
-        else:
+        except (ValueError, RuntimeError):
             missing.append(symbol)
+
     return {
         "connected": account is not None,
         "login": getattr(account, "login", None),

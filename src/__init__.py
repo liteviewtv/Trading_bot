@@ -1,0 +1,1 @@
+"""Free Trading Bot package."""

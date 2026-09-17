@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from .mt5_multi_asset import AssetResult, DEFAULT_ASSETS, scan_assets
 from .mt5_demo_cycle import run_demo_cycle
+from .mt5_position_manager import inspect_positions
 
 
 @dataclass(frozen=True)
@@ -19,10 +20,13 @@ def run_auto_demo_cycle(
     assets=DEFAULT_ASSETS,
     execute: bool = False,
     max_orders: int = 2,
+    max_open_positions: int = 5,
 ) -> AutoCycleResult:
-    """Scan multiple assets and optionally submit a limited number of demo orders."""
+    """Scan assets and optionally submit only permitted demo orders."""
     if max_orders < 0:
         raise ValueError("max_orders must be non-negative")
+    if max_open_positions < 0:
+        raise ValueError("max_open_positions must be non-negative")
 
     scanned = scan_assets(assets)
     executed: list[object] = []
@@ -38,6 +42,12 @@ def run_auto_demo_cycle(
         if len(executed) >= max_orders:
             skipped.append(f"{item.requested}: order limit reached")
             continue
+
+        state = inspect_positions(item.symbol or item.requested, max_open_positions=max_open_positions)
+        if not state.can_open:
+            skipped.append(f"{item.requested}: {state.reason}")
+            continue
+
         result = run_demo_cycle(item.symbol or item.requested, execute=True)
         executed.append(result)
 

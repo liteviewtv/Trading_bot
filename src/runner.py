@@ -9,6 +9,7 @@ from .execution import submit_paper_buy
 from .market_data import create_data_client, get_recent_daily_bars
 from .position_manager import monitor_positions
 from .strategy import generate_signal
+from .telegram_notify import TelegramNotifier
 from .trade_store import TradeStore
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,8 +28,8 @@ def run_cycle(symbols: list[str], execute: bool = False):
     strategy = load_json("strategy.json")
     universe = load_json("universe.json")
     store = TradeStore()
+    telegram = TelegramNotifier()
 
-    # Monitor existing paper positions before considering new entries.
     if execute and universe.get("execute_paper_orders", False):
         for action in monitor_positions(
             trading,
@@ -36,6 +37,8 @@ def run_cycle(symbols: list[str], execute: bool = False):
             take_profit_pct=float(universe["take_profit_pct"]) / 100,
         ):
             store.record_event("INFO", "POSITION_EXIT", str(action))
+            if telegram.configured:
+                telegram.event("📤 POSITION EXIT", str(action))
 
     account = trading.get_account()
     equity = float(account.equity)
@@ -56,6 +59,12 @@ def run_cycle(symbols: list[str], execute: bool = False):
         if not signal:
             continue
 
+        if telegram.configured:
+            telegram.event(
+                "🤖 AI/PAPER SIGNAL",
+                f"Symbol: {signal.symbol}\nAction: {signal.action}\nPrice: {signal.price:.6f}\nReason: {signal.reason}",
+            )
+
         stop = signal.price * (1 - float(universe["stop_loss_pct"]) / 100)
         order_id = None
         qty = 0
@@ -73,8 +82,14 @@ def run_cycle(symbols: list[str], execute: bool = False):
                 open_positions += 1
                 trades_this_cycle += 1
                 store.record_trade(symbol, "BUY", qty, "SUBMITTED", signal.price, order_id, signal.reason)
+                if telegram.configured:
+                    telegram.event("🟢 PAPER ORDER SUBMITTED", f"Symbol: {symbol}\nSide: BUY\nQuantity: {qty}\nPrice: {signal.price:.6f}\nOrder ID: {order_id}")
+            elif telegram.configured:
+                telegram.event("⛔ PAPER ORDER BLOCKED", f"Symbol: {symbol}\nSignal: {signal.action}\nPrice: {signal.price:.6f}\nRisk/position/order limit prevented submission.")
 
         results.append({"symbol": symbol, "action": signal.action, "price": signal.price, "order_id": order_id})
 
     store.record_event("INFO", "CYCLE_COMPLETE", f"signals={len(results)} orders={trades_this_cycle}")
+    if telegram.configured:
+        telegram.event("🔄 PAPER CYCLE COMPLETE", f"Signals: {len(results)}\nOrders submitted: {trades_this_cycle}")
     return results

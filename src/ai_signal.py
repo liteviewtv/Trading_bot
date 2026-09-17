@@ -1,7 +1,4 @@
-"""AI-ready signal analysis with an optional local-model adapter.
-
-The model remains advisory-only: it cannot place orders or bypass risk controls.
-"""
+"""AI-ready signal analysis with an optional local-model adapter."""
 
 from __future__ import annotations
 
@@ -27,6 +24,10 @@ class DeterministicAnalyzer:
         if action not in {"BUY", "SELL"}:
             return AIAnalysis("HOLD", 1.0, "No actionable strategy signal")
         return AIAnalysis(action, 0.50, "No local model configured; held for safety")
+
+
+# Backward-compatible public name used by the existing test suite and callers.
+SignalAnalyzer = DeterministicAnalyzer
 
 
 class LocalModelAnalyzer:

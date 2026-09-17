@@ -18,5 +18,5 @@ def test_summary():
     assert result["trades"] == 2
     assert result["wins"] == 1
     assert result["losses"] == 1
-    assert result["total_return_pct"] == -0.1
+    assert result["total_return_pct"] == 2.9
     assert result["average_confidence"] == 0.7

@@ -1,0 +1,23 @@
+name: Paper Trading Cycle
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * 1-5'
+
+jobs:
+  paper-cycle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Run one paper cycle
+        env:
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          ALPACA_PAPER: 'true'
+          BOT_MAX_CYCLES: '1'
+        run: python bot.py

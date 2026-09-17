@@ -6,7 +6,6 @@ in configuration. MT5 Python communicates with a locally installed MT5 terminal.
 
 import os
 from dataclasses import dataclass
-from datetime import datetime
 
 import MetaTrader5 as mt5
 
@@ -48,6 +47,13 @@ def disconnect():
 
 def account_info():
     return mt5.account_info()
+
+
+def positions(symbol: str | None = None):
+    values = mt5.positions_get(symbol=symbol) if symbol else mt5.positions_get()
+    if values is None:
+        raise RuntimeError(f"Could not retrieve MT5 positions: {mt5.last_error()}")
+    return values
 
 
 def symbols(group: str = "*"):

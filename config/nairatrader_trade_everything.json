@@ -1,0 +1,22 @@
+{
+  "profile": "nairatrader_trade_everything",
+  "enabled": false,
+  "execution_mode": "demo_only",
+  "broker_execution": "mt5",
+  "max_account_drawdown_fraction": 0.05,
+  "symbols": {
+    "forex": ["EURUSD", "GBPUSD", "USDJPY"],
+    "metals": ["XAUUSD", "XAGUSD"],
+    "crypto": [],
+    "indices": [],
+    "stocks": [],
+    "energies": []
+  },
+  "rules": {
+    "scalping_rule": "must_be_verified_against_the_specific_NairaTrader_account_terms_before_live_use",
+    "trade_only_symbols_available_on_the_connected_MT5_account": true,
+    "never_exceed_account_drawdown_limit": true,
+    "never_enable_live_execution_automatically": true
+  },
+  "notes": "This is a safety/profile configuration for NairaTrader preparation. It does not authorize live trading and does not assume that every symbol is available on every account. The current Trade Everything Tradable announcement says all symbols are available and references the DTC drawdown/scalping rules; verify the exact account terms before activation."
+}

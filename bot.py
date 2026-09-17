@@ -1,4 +1,4 @@
-"""Scheduled paper-trading entry point with explicit safety gates."""
+"""Long-running paper-trading entry point with Telegram command polling."""
 
 import json
 import logging
@@ -26,14 +26,14 @@ def main():
     interval = int(os.getenv("BOT_INTERVAL_SECONDS", "300"))
     telegram = TelegramPollingBot()
     telegram_enabled = telegram.configured
+    cycle = 0
 
-    for cycle in range(max_cycles):
+    while max_cycles == 0 or cycle < max_cycles:
+        cycle += 1
         try:
             if telegram_enabled:
                 telegram.poll_once()
 
-            # A Telegram /pause command updates the same control object used by
-            # the command handler. Do not open new paper trades while paused.
             cycle_execute = execute and not telegram.control.paused
             if execute and telegram.control.paused:
                 logging.info("Paper trading paused via Telegram; skipping new orders")
@@ -41,15 +41,15 @@ def main():
             else:
                 results = run_cycle(symbols, execute=cycle_execute)
 
-            logging.info("Cycle %d completed: %d signal(s)", cycle + 1, len(results))
+            logging.info("Cycle %d completed: %d signal(s)", cycle, len(results))
             for result in results:
                 logging.info("%s", result)
-
-            if telegram_enabled:
-                telegram.poll_once()
         except Exception:
             logging.exception("Trading cycle failed")
-        if cycle + 1 < max_cycles:
+
+        if max_cycles == 0:
+            time.sleep(max(1, int(os.getenv("TELEGRAM_POLL_INTERVAL_SECONDS", "10"))))
+        elif cycle < max_cycles:
             time.sleep(interval)
 
 

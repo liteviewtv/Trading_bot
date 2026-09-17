@@ -31,10 +31,20 @@ def main():
         try:
             if telegram_enabled:
                 telegram.poll_once()
-            results = run_cycle(symbols, execute=execute)
+
+            # A Telegram /pause command updates the same control object used by
+            # the command handler. Do not open new paper trades while paused.
+            cycle_execute = execute and not telegram.control.paused
+            if execute and telegram.control.paused:
+                logging.info("Paper trading paused via Telegram; skipping new orders")
+                results = []
+            else:
+                results = run_cycle(symbols, execute=cycle_execute)
+
             logging.info("Cycle %d completed: %d signal(s)", cycle + 1, len(results))
             for result in results:
                 logging.info("%s", result)
+
             if telegram_enabled:
                 telegram.poll_once()
         except Exception:

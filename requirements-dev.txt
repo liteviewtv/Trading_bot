@@ -1,2 +1,3 @@
--r requirements.txt
+# CI/development dependencies. MT5 is installed only on supported Windows runners.
+-r requirements-linux.txt
 pytest>=8,<9

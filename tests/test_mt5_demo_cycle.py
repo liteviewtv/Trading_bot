@@ -1,24 +1,38 @@
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 
 import pandas as pd
 
 from src import mt5_demo_cycle
 
 
+def fake_modules(monkeypatch, order_submitter):
+    client = ModuleType("src.mt5_client")
+    client.MT5Settings = SimpleNamespace(from_env=lambda: object())
+    client.connect = lambda settings: None
+    client.disconnect = lambda: None
+    client.account_info = lambda: SimpleNamespace(equity=10_000)
+    client.bars = lambda symbol: pd.DataFrame({"close": [10.0] * 60})
+
+    execution = ModuleType("src.mt5_execution")
+    execution.calculate_volume = lambda *args: 0.1
+    execution.submit_demo_market_order = order_submitter
+
+    strategy = ModuleType("src.mt5_strategy")
+    strategy.generate_mt5_signal = lambda symbol, frame: SimpleNamespace(action="BUY")
+
+    monkeypatch.setitem(__import__("sys").modules, "src.mt5_client", client)
+    monkeypatch.setitem(__import__("sys").modules, "src.mt5_execution", execution)
+    monkeypatch.setitem(__import__("sys").modules, "src.mt5_strategy", strategy)
+
+
 def test_cycle_does_not_execute_by_default(monkeypatch):
-    monkeypatch.setattr(mt5_demo_cycle, "MT5Settings", SimpleNamespace(from_env=lambda: object()))
-    monkeypatch.setattr(mt5_demo_cycle, "connect", lambda settings: None)
-    monkeypatch.setattr(mt5_demo_cycle, "disconnect", lambda: None)
-    monkeypatch.setattr(mt5_demo_cycle, "account_info", lambda: SimpleNamespace(equity=10_000))
-    monkeypatch.setattr(mt5_demo_cycle, "bars", lambda symbol: pd.DataFrame({"close": [10.0] * 60}))
-    monkeypatch.setattr(mt5_demo_cycle, "generate_mt5_signal", lambda symbol, frame: SimpleNamespace(action="BUY"))
     called = {"order": False}
 
     def fail_if_called(*args, **kwargs):
         called["order"] = True
         raise AssertionError("demo order must not be submitted when execute=False")
 
-    monkeypatch.setattr(mt5_demo_cycle, "submit_demo_market_order", fail_if_called)
+    fake_modules(monkeypatch, fail_if_called)
     result = mt5_demo_cycle.run_demo_cycle("EURUSD")
 
     assert result.submitted is False
@@ -27,14 +41,7 @@ def test_cycle_does_not_execute_by_default(monkeypatch):
 
 
 def test_cycle_submits_when_explicitly_enabled(monkeypatch):
-    monkeypatch.setattr(mt5_demo_cycle, "MT5Settings", SimpleNamespace(from_env=lambda: object()))
-    monkeypatch.setattr(mt5_demo_cycle, "connect", lambda settings: None)
-    monkeypatch.setattr(mt5_demo_cycle, "disconnect", lambda: None)
-    monkeypatch.setattr(mt5_demo_cycle, "account_info", lambda: SimpleNamespace(equity=10_000))
-    monkeypatch.setattr(mt5_demo_cycle, "bars", lambda symbol: pd.DataFrame({"close": [10.0] * 60}))
-    monkeypatch.setattr(mt5_demo_cycle, "generate_mt5_signal", lambda symbol, frame: SimpleNamespace(action="BUY"))
-    monkeypatch.setattr(mt5_demo_cycle, "calculate_volume", lambda *args: 0.1)
-    monkeypatch.setattr(mt5_demo_cycle, "submit_demo_market_order", lambda *args: SimpleNamespace(retcode=10009))
+    fake_modules(monkeypatch, lambda *args: SimpleNamespace(retcode=10009))
 
     result = mt5_demo_cycle.run_demo_cycle("EURUSD", execute=True)
     assert result.submitted is True

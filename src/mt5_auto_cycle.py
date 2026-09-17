@@ -1,14 +1,14 @@
-"""Multi-asset automatic MT5 demo cycle with position/trade limits."""
+"""Multi-asset automatic MT5 demo cycle with AI filtering and journaling."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .mt5_multi_asset import AssetResult, DEFAULT_ASSETS, scan_assets
+from .ai_filter import AIFilterDecision, filter_signal
 from .mt5_demo_cycle import run_demo_cycle
+from .mt5_multi_asset import AssetResult, DEFAULT_ASSETS, scan_assets
 from .mt5_position_manager import inspect_positions
 from .trade_journal import append_entry, make_entry
-from .ai_filter import AIFilterDecision, filter_signal
 
 
 @dataclass(frozen=True)
@@ -26,16 +26,18 @@ def run_auto_demo_cycle(
     journal_path=None,
     ai_decisions: dict[str, AIFilterDecision] | None = None,
     ai_min_confidence: float = 0.60,
+    ai_analyzer=None,
 ) -> AutoCycleResult:
-    """Scan assets and optionally submit only permitted demo orders.
+    """Scan assets and submit only signals passing optional AI and risk gates.
 
-    AI decisions are optional. When supplied, they must match the strategy
-    action and meet the confidence threshold before execution is allowed.
+    ``ai_analyzer`` must expose ``analyze(signal, context)`` and return an
+    object with ``decision``, ``confidence`` and ``reason``. It is advisory
+    only; risk and position controls remain authoritative.
     """
-    if max_orders < 0:
-        raise ValueError("max_orders must be non-negative")
-    if max_open_positions < 0:
-        raise ValueError("max_open_positions must be non-negative")
+    if max_orders < 0 or max_open_positions < 0:
+        raise ValueError("position/order limits must be non-negative")
+    if not 0.0 <= ai_min_confidence <= 1.0:
+        raise ValueError("ai_min_confidence must be between 0 and 1")
 
     scanned = scan_assets(assets)
     executed: list[object] = []
@@ -61,6 +63,18 @@ def run_auto_demo_cycle(
             skipped.append(f"{item.requested}: order limit reached")
             journal(symbol, "skipped", reason="order limit reached", signal=item.signal)
             continue
+
+        if ai_analyzer is not None:
+            try:
+                analysis = ai_analyzer.analyze(item.signal, {"symbol": symbol})
+                ai_decisions = dict(ai_decisions or {})
+                ai_decisions[symbol] = AIFilterDecision(
+                    str(analysis.decision).upper(), float(analysis.confidence), str(analysis.reason)
+                )
+            except Exception as exc:
+                skipped.append(f"{item.requested}: AI analysis failed")
+                journal(symbol, "skipped", reason=f"AI analysis failed: {exc}", signal=item.signal)
+                continue
 
         if ai_decisions is not None:
             ai_decision = ai_decisions.get(symbol) or ai_decisions.get(item.requested)

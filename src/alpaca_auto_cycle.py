@@ -128,8 +128,7 @@ def _notify_block(notifier, symbol, reason):
     if now - _BLOCK_ALERT_LAST.get(key, 0) >= _ORDER_BUCKET_SECONDS:
         _BLOCK_ALERT_LAST[key] = now
         try:
-            notifier.event("🛡️ TRADE BLOCKED", f"Symbol: {symbol}
-Reason: {reason}")
+            notifier.event("🛡️ TRADE BLOCKED", f"Symbol: {symbol}\nReason: {reason}")
         except Exception:
             pass
 
@@ -179,9 +178,7 @@ def manage_open_positions(*, stop_loss_pct, take_profit_pct, notifier, journal):
                 try:
                     notifier.event(
                         "🛡️ POSITION CLOSED",
-                        f"Symbol: {market_symbol}
-PnL: {pnl_pct:.2f}%
-Reason: {reason}",
+                        f"Symbol: {market_symbol}\nPnL: {pnl_pct:.2f}%\nReason: {reason}",
                     )
                 except Exception:
                     pass
@@ -264,8 +261,7 @@ def run_auto_demo_cycle(
 
     daily_loss_hit, daily_loss_reason = _daily_loss_limit_hit(max_daily_loss_pct)
     if daily_loss_hit:
-        notify("🛑 DAILY LOSS LIMIT", f"Trading entries blocked.
-Reason: {daily_loss_reason}")
+        notify("🛑 DAILY LOSS LIMIT", f"Trading entries blocked.\nReason: {daily_loss_reason}")
 
     for item in scanned:
         symbol = item.symbol or item.requested
@@ -279,8 +275,7 @@ Reason: {daily_loss_reason}")
                 symbol, reason, item.diagnostic or "n/a",
             )
             if reason not in {"Asset unavailable or not tradable", "No trading signal"}:
-                notify("⚠️ SIGNAL SKIPPED", f"Symbol: {symbol}
-Reason: {reason}")
+                notify("⚠️ SIGNAL SKIPPED", f"Symbol: {symbol}\nReason: {reason}")
             continue
 
         log.info(
@@ -291,9 +286,7 @@ Reason: {reason}")
         if not execute:
             skipped.append(f"{item.requested}: execution disabled")
             journal(symbol, "signal", reason="execution disabled", signal=item.signal)
-            notify("🤖 PAPER SIGNAL", f"Symbol: {symbol}
-Action: {item.signal.action}
-Mode: Alpaca paper")
+            notify("🤖 PAPER SIGNAL", f"Symbol: {symbol}\nAction: {item.signal.action}\nMode: Alpaca paper")
             continue
 
         if len(executed) >= max_orders:
@@ -341,8 +334,7 @@ Mode: Alpaca paper")
                 skipped.append(f"{item.requested}: {filtered.reason}")
                 journal(symbol, "skipped", reason=filtered.reason, signal=item.signal)
                 log.info("Trade rejected | symbol=%s | reason=%s", symbol, filtered.reason)
-                notify("⏸️ TRADE REJECTED", f"Symbol: {symbol}
-Reason: {filtered.reason}")
+                notify("⏸️ TRADE REJECTED", f"Symbol: {symbol}\nReason: {filtered.reason}")
                 continue
 
         # SELL signals close an existing long; BUY signals require a new position slot.
@@ -362,9 +354,7 @@ Reason: {filtered.reason}")
                 result = close_position(broker_symbol)
                 executed.append(result)
                 journal(symbol, "executed", reason="strategy SELL", signal=item.signal, result=str(result))
-                notify("🔻 ALPACA PAPER EXIT", f"Symbol: {symbol}
-Action: SELL
-Position closed.")
+                notify("🔻 ALPACA PAPER EXIT", f"Symbol: {symbol}\nAction: SELL\nPosition closed.")
             except Exception as exc:
                 skipped.append(f"{item.requested}: exit failed")
                 log.warning("Exit failed | symbol=%s | error=%s", symbol, exc)
@@ -404,9 +394,7 @@ Position closed.")
         journal(symbol, "executed", signal=item.signal, result=str(result))
         notify(
             "✅ ALPACA PAPER TRADE",
-            f"Symbol: {symbol}
-Action: {item.signal.action}
-Order submitted.",
+            f"Symbol: {symbol}\nAction: {item.signal.action}\nOrder submitted.",
         )
 
     if ai_failures and not _AI_FAILURE_ALERT_ACTIVE:
@@ -414,8 +402,7 @@ Order submitted.",
         suffix = f" (+{len(ai_failures)-8} more)" if len(ai_failures) > 8 else ""
         notify(
             "❌ GROQ AI UNAVAILABLE",
-            f"AI analysis failed for {len(ai_failures)} signal(s).
-"
+            f"AI analysis failed for {len(ai_failures)} signal(s).\n"
             f"Symbols: {symbols}{suffix}
 "
             "Trading was blocked for those signals. Telegram alerts are suppressed until Groq recovers.",

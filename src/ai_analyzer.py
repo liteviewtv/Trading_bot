@@ -1,4 +1,4 @@
-"""AI advisory analyzer using an OpenAI-compatible local endpoint (Ollama by default)."""
+"""Groq-backed AI advisory signal analyzer."""
 from __future__ import annotations
 import json, os, requests
 from dataclasses import dataclass
@@ -10,17 +10,19 @@ class AIAnalysis:
     reason: str
 
 class AIAnalyzer:
-    def __init__(self, base_url=None, model=None, timeout=20):
-        self.base_url=(base_url or os.getenv("AI_BASE_URL","http://127.0.0.1:11434/v1")).rstrip("/")
-        self.model=model or os.getenv("AI_MODEL","llama3.2:3b")
+    def __init__(self, api_key=None, model=None, timeout=20):
+        self.api_key=api_key or os.getenv("GROQ_API_KEY")
+        self.base_url="https://api.groq.com/openai/v1"
+        self.model=model or os.getenv("GROQ_MODEL","llama-3.1-8b-instant")
         self.timeout=timeout
+        if not self.api_key: raise RuntimeError("GROQ_API_KEY is not configured")
 
     def analyze(self, signal, context):
         payload={"model":self.model,"temperature":0,"messages":[
-            {"role":"system","content":"You are a conservative crypto trading signal reviewer. Return ONLY valid JSON with keys decision, confidence, reason. decision must be BUY, SELL, or HOLD. Never invent market data. Review the supplied strategy signal; you may reject it but cannot override risk controls."},
+            {"role":"system","content":"You are a conservative crypto trading signal reviewer. Return ONLY valid JSON with keys decision, confidence, reason. decision must be BUY, SELL, or HOLD. Never invent market data. The strategy signal is the primary signal; approve only when the supplied evidence supports it. Do not override risk controls."},
             {"role":"user","content":json.dumps({"symbol":str(context.get("symbol","")),"strategy_action":getattr(signal,"action",None),"price":getattr(signal,"price",None),"strategy_reason":getattr(signal,"reason",None),"context":context})}
         ]}
-        r=requests.post(f"{self.base_url}/chat/completions",json=payload,timeout=self.timeout)
+        r=requests.post(f"{self.base_url}/chat/completions",headers={"Authorization":f"Bearer {self.api_key}","Content-Type":"application/json"},json=payload,timeout=self.timeout)
         r.raise_for_status()
         content=r.json()["choices"][0]["message"]["content"].strip()
         if content.startswith("```"):

@@ -5,7 +5,8 @@ import logging
 from .ai_filter import AIFilterDecision, filter_signal
 from .alpaca_client import bars, submit_market_order, tradable_asset
 from .alpaca_position_manager import inspect_positions
-from .alpaca_strategy import generate_alpaca_signal
+from .alpaca_strategy import generate_alpaca_signal, candles_to_dataframe
+from .strategy import diagnose_signal
 from .trade_journal import append_entry, make_entry
 from .telegram_notify import TelegramNotifier
 
@@ -17,6 +18,7 @@ class AssetResult:
     symbol: str | None
     signal: object | None
     error: str | None = None
+    diagnostic: str | None = None
 
 @dataclass(frozen=True)
 class AutoCycleResult:
@@ -31,7 +33,11 @@ def scan_assets(assets):
             asset=tradable_asset(symbol)
             if not asset or not asset.get("tradable"):
                 results.append(AssetResult(symbol,None,None,"Asset unavailable or not tradable")); continue
-            results.append(AssetResult(symbol,symbol,generate_alpaca_signal(symbol,bars(symbol))))
+            raw_bars=bars(symbol)
+            frame=candles_to_dataframe(raw_bars)
+            signal=generate_alpaca_signal(symbol,raw_bars)
+            diagnostic=None if signal is not None else diagnose_signal(symbol,frame,sma_period=50,breakout_lookback=20,min_return_pct=0.5)
+            results.append(AssetResult(symbol,symbol,signal,diagnostic=diagnostic))
         except Exception as exc:
             results.append(AssetResult(symbol,symbol,None,str(exc)))
     return results
@@ -51,7 +57,7 @@ def run_auto_demo_cycle(assets, execute=False, max_orders=2, max_open_positions=
             reason=item.error or "No trading signal"
             skipped.append(f"{item.requested}: no signal")
             journal(symbol,"skipped",reason=reason)
-            log.info("Signal rejected | symbol=%s | reason=%s", symbol, reason)
+            log.info("Signal rejected | symbol=%s | reason=%s | diagnostic=%s", symbol, reason, item.diagnostic or "n/a")
             if reason not in {"Asset unavailable or not tradable", "No trading signal"}:
                 notify("⚠️ SIGNAL SKIPPED",f"Symbol: {symbol}\nReason: {reason}")
             continue

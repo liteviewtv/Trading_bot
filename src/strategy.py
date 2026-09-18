@@ -35,13 +35,13 @@ def generate_signal(symbol: str, bars: pd.DataFrame, sma_period: int = 20,
     close = float(latest["close"])
     sma = float(latest["sma"])
 
-    if close > sma and close > prior_high and day_return_pct >= min_return_pct:
+    if close > sma and close >= sma * 1.005 and close > prior_high and day_return_pct >= min_return_pct:
         return Signal(
             symbol=symbol,
             action="BUY",
             price=close,
             reason=f"Close above SMA{sma_period}, {breakout_lookback}-period high breakout, "
-                   f"return {day_return_pct:.2f}%",
+                   f"return {day_return_pct:.2f}%, SMA distance {(close / sma - 1) * 100:.2f}%",
         )
 
     if close < sma and close < prior_low and day_return_pct <= -min_return_pct:

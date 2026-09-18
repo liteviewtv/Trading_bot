@@ -15,6 +15,7 @@ from .telegram_notify import TelegramNotifier
 log = logging.getLogger(__name__)
 _AI_FAILURE_ALERT_ACTIVE = False
 _BLOCK_ALERT_LAST: dict[tuple[str, str], float] = {}
+_AI_REJECT_ALERT_LAST: dict[tuple[str, str], float] = {}
 _ORDER_BUCKET_SECONDS = 1800
 
 
@@ -208,6 +209,17 @@ def _daily_loss_limit_hit(max_daily_loss_pct):
         return False, None
 
 
+def _notify_ai_rejection(notifier, symbol, reason):
+    key = (symbol, str(reason))
+    now = monotonic()
+    if now - _AI_REJECT_ALERT_LAST.get(key, 0) >= _ORDER_BUCKET_SECONDS:
+        _AI_REJECT_ALERT_LAST[key] = now
+        try:
+            notifier.event("⏸️ TRADE REJECTED", f"Symbol: {symbol}\nReason: {reason}")
+        except Exception:
+            pass
+
+
 def run_auto_demo_cycle(
     assets, execute=False, max_orders=2, max_open_positions=5,
     min_return_pct=0.1, sma_period=50, breakout_lookback=10,
@@ -334,7 +346,7 @@ def run_auto_demo_cycle(
                 skipped.append(f"{item.requested}: {filtered.reason}")
                 journal(symbol, "skipped", reason=filtered.reason, signal=item.signal)
                 log.info("Trade rejected | symbol=%s | reason=%s", symbol, filtered.reason)
-                notify("⏸️ TRADE REJECTED", f"Symbol: {symbol}\nReason: {filtered.reason}")
+                _notify_ai_rejection(notifier, symbol, filtered.reason)
                 continue
 
         # SELL signals close an existing long; BUY signals require a new position slot.

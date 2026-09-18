@@ -22,6 +22,7 @@ def request(method,path,*,data=None,params=None):
 
 def account(): return request("GET","/v2/account")
 def positions(): return request("GET","/v2/positions")
+def open_orders(): return request("GET","/v2/orders",params={"status":"open","limit":500,"nested":"true"}) or []
 
 def available_instruments(asset_class="crypto"):
     return request("GET","/v2/assets",params={"status":"active","asset_class":asset_class}) or []

@@ -26,7 +26,7 @@ class AutoCycleResult:
     executed: list[object]
     skipped: list[str]
 
-def scan_assets(assets):
+def scan_assets(assets, *, min_return_pct=0.1, sma_period=50, breakout_lookback=20):
     results=[]
     for symbol in assets:
         try:
@@ -35,16 +35,16 @@ def scan_assets(assets):
                 results.append(AssetResult(symbol,None,None,"Asset unavailable or not tradable")); continue
             raw_bars=bars(symbol)
             frame=candles_to_dataframe(raw_bars)
-            signal=generate_alpaca_signal(symbol,raw_bars)
-            diagnostic=None if signal is not None else diagnose_signal(symbol,frame,sma_period=50,breakout_lookback=20,min_return_pct=0.5)
+            signal=generate_alpaca_signal(symbol,raw_bars,sma_period=sma_period,breakout_lookback=breakout_lookback,min_return_pct=min_return_pct)
+            diagnostic=None if signal is not None else diagnose_signal(symbol,frame,sma_period=sma_period,breakout_lookback=breakout_lookback,min_return_pct=min_return_pct)
             results.append(AssetResult(symbol,symbol,signal,diagnostic=diagnostic))
         except Exception as exc:
             results.append(AssetResult(symbol,symbol,None,str(exc)))
     return results
 
-def run_auto_demo_cycle(assets, execute=False, max_orders=2, max_open_positions=5, journal_path=None, ai_decisions=None, ai_min_confidence=0.60, ai_analyzer=None, notifier=None, control=None):
+def run_auto_demo_cycle(assets, execute=False, max_orders=2, max_open_positions=5, min_return_pct=0.1, sma_period=50, breakout_lookback=20, journal_path=None, ai_decisions=None, ai_min_confidence=0.60, ai_analyzer=None, notifier=None, control=None):
     if max_orders < 0 or max_open_positions < 0: raise ValueError("position/order limits must be non-negative")
-    notifier=notifier or TelegramNotifier(); scanned=scan_assets(assets); executed=[]; skipped=[]
+    notifier=notifier or TelegramNotifier(); scanned=scan_assets(assets,min_return_pct=min_return_pct,sma_period=sma_period,breakout_lookback=breakout_lookback); executed=[]; skipped=[]
     def journal(symbol,event,reason=None,signal=None,result=None):
         if journal_path is not None: append_entry(journal_path,make_entry(event,symbol,reason=reason,action=getattr(signal,"action",None),result=result))
     def notify(event,details=""):

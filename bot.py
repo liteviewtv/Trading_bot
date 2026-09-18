@@ -5,7 +5,7 @@ import os
 import time
 from pathlib import Path
 from src.alpaca_auto_cycle import run_auto_demo_cycle
-from src.alpaca_client import account
+from src.alpaca_client import account, crypto_universe
 from src.telegram_polling import TelegramPollingBot
 
 ROOT = Path(__file__).resolve().parent
@@ -17,7 +17,16 @@ def load_universe():
 
 def main():
     cfg = load_universe()
-    assets = tuple(cfg.get("symbols") or cfg.get("assets") or ())
+    dynamic_crypto = bool(cfg.get("dynamic_crypto_universe", False))
+    if dynamic_crypto:
+        try:
+            assets = tuple(crypto_universe())
+            logging.info("Dynamic Alpaca crypto universe loaded: %d active tradable USD pairs", len(assets))
+        except Exception:
+            logging.exception("Unable to load dynamic Alpaca crypto universe")
+            assets = ()
+    else:
+        assets = tuple(cfg.get("symbols") or cfg.get("assets") or ())
     execute = bool(cfg.get("execute_paper_orders", False))
     max_cycles = int(os.getenv("BOT_MAX_CYCLES", "1"))
     interval = int(os.getenv("BOT_INTERVAL_SECONDS", "300"))
@@ -37,6 +46,9 @@ def main():
         try:
             if telegram.configured:
                 telegram.poll_once()
+            if dynamic_crypto:
+                assets = tuple(crypto_universe())
+                logging.info("Cycle %d dynamic crypto universe: %d active tradable USD pairs", cycle, len(assets))
             result = run_auto_demo_cycle(
                 assets=assets,
                 execute=execute and not telegram.control.paused,

@@ -2,7 +2,7 @@
   "symbols": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "AMD", "NFLX", "AVGO"],
   "max_concurrent_positions": 5,
   "max_trades_per_cycle": 1,
-  "execute_paper_orders": false,
+  "execute_paper_orders": true,
   "stop_loss_pct": 2.0,
   "take_profit_pct": 4.0,
   "max_daily_loss_pct": 2.0

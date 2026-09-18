@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from urllib.error import HTTPError
 from urllib.parse import urlencode
@@ -12,6 +13,8 @@ from .paper_tracker import summarize_paper_trades
 from .telegram_commands import handle_command
 from .telegram_control import DemoControl
 from .telegram_notify import TelegramNotifier
+
+log = logging.getLogger(__name__)
 
 
 class TelegramPollingBot:
@@ -44,24 +47,26 @@ class TelegramPollingBot:
         return result.get("result", [])
 
     def start(self):
-        """Switch this bot to polling mode by removing any configured webhook."""
         if not self.configured or self._started:
             return
         self._request("deleteWebhook", {"drop_pending_updates": "false"})
         self._started = True
+        log.info("Telegram polling initialized successfully for configured chat")
 
     def poll_once(self, summary=None, positions=None):
         if not self.configured:
+            log.warning("Telegram polling disabled: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing")
             return 0
-        self.start()
         try:
+            self.start()
             updates = self._request("getUpdates", {"offset": self.offset, "timeout": self.timeout})
         except RuntimeError as exc:
-            # Keep the trading loop alive while a second runner is being stopped.
             if str(exc).startswith("Telegram polling conflict:"):
                 self._started = False
+                log.error("Telegram polling conflict: another process/webhook is consuming updates")
                 return 0
-            raise
+            log.exception("Telegram polling request failed")
+            return 0
         handled = 0
         summary = summary or summarize_paper_trades([])
         for update in updates:
@@ -71,8 +76,11 @@ class TelegramPollingBot:
             if str(chat.get("id")) != self.chat_id:
                 continue
             text = message.get("text") or ""
+            log.info("Telegram command received: %s", text.split()[0] if text else "<empty>")
             reply = handle_command(text, summary, self.control, positions)
             if reply:
                 self.notifier.send(reply)
             handled += 1
+        if updates:
+            log.info("Telegram polling handled %d update(s)", handled)
         return handled

@@ -1,7 +1,8 @@
-"""Minimal REST client for Alpaca paper trading and market data."""
+"""Minimal REST client for Alpaca paper trading and crypto market data."""
 from __future__ import annotations
 import os
 import requests
+from datetime import datetime, timedelta, timezone
 
 PAPER_BASE_URL = "https://paper-api.alpaca.markets"
 DATA_BASE_URL = "https://data.alpaca.markets"
@@ -35,15 +36,16 @@ def open_position(symbol):
     return response.json()
 
 def bars(symbol,timeframe="15Min",limit=100):
-    if "/" in symbol:
-        response=requests.get(f"{DATA_BASE_URL}/v1beta3/crypto/us/bars",headers=_headers(),params={"symbols":symbol,"timeframe":timeframe,"limit":limit},timeout=20)
-        if not response.ok: raise RuntimeError(f"Alpaca crypto market data {response.status_code}: {response.text[:500]}")
-        return (response.json().get("bars") or {}).get(symbol,[])
-    raise ValueError(f"Unsupported non-crypto symbol: {symbol}")
+    if "/" not in symbol: raise ValueError(f"Unsupported non-crypto symbol: {symbol}")
+    end=datetime.now(timezone.utc)
+    minutes=15 if timeframe.endswith("Min") else 1440
+    start=end-timedelta(minutes=max(limit*minutes*2, 24*60))
+    response=requests.get(f"{DATA_BASE_URL}/v1beta3/crypto/us/bars",headers=_headers(),params={"symbols":symbol,"timeframe":timeframe,"limit":limit,"start":start.isoformat(),"end":end.isoformat(),"sort":"asc"},timeout=20)
+    if not response.ok: raise RuntimeError(f"Alpaca crypto market data {response.status_code}: {response.text[:500]}")
+    return (response.json().get("bars") or {}).get(symbol,[])
 
 def tradable_asset(symbol):
-    assets=available_instruments("crypto")
-    for asset in assets:
+    for asset in available_instruments("crypto"):
         if asset.get("symbol")==symbol: return asset if asset.get("tradable") else None
     return None
 

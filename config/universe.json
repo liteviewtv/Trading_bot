@@ -9,10 +9,10 @@
   "max_concurrent_positions": 5,
   "max_trades_per_cycle": 1,
   "execute_paper_orders": true,
-  "stop_loss_pct": 2.0,
-  "take_profit_pct": 4.0,
-  "max_daily_loss_pct": 2.0,
-  "min_return_pct": 0.05,
+  "stop_loss_pct": 1.5,
+  "take_profit_pct": 3,
+  "max_daily_loss_pct": 2,
+  "min_return_pct": 0.75,
   "sma_period": 50,
-  "breakout_lookback": 1
+  "breakout_lookback": 20
 }

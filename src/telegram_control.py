@@ -5,8 +5,8 @@ class DemoControl:
     def __init__(self): self.paused=False
     def handle(self,command,positions=None):
         command=command.strip().split()[0].lower() if command.strip() else ""
-        if command.startswith("/pause"): self.paused=True; return "⏸️ Paper trading paused."
-        if command.startswith("/resume"): self.paused=False; return "▶️ Paper trading resumed."
+        if command.startswith("/pause"): self.paused=True; return "⏸️ Demo trading paused."
+        if command.startswith("/resume"): self.paused=False; return "▶️ Demo trading resumed."
         if command.startswith("/positions"):
             positions=positions or []
             if not positions: return "📋 PAPER POSITIONS\nNo open positions."

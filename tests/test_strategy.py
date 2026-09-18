@@ -45,6 +45,25 @@ def test_strategy_generates_breakout_signal():
     assert "breakout" in signal.reason
 
 
+def test_strategy_generates_oversold_reversal_signal():
+    close = [10.0] * 207
+    close += list(__import__("numpy").linspace(10.0, 9.8, 10))
+    close += [9.8 * 0.99, 9.8 * 0.985, 9.8 * 1.02]
+    bars = pd.DataFrame(
+        {
+            "open": close,
+            "high": [price + 0.01 for price in close],
+            "low": [price - 0.01 for price in close],
+            "close": close,
+            "volume": [1_000_000] * len(close),
+        }
+    )
+    signal = generate_signal("TEST", bars, sma_period=50, breakout_lookback=10)
+    assert signal is not None
+    assert signal.action == "BUY"
+    assert "RSI oversold reversal" in signal.reason
+
+
 def test_strategy_rejects_negative_min_return():
     bars = pd.DataFrame(
         {

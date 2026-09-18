@@ -20,7 +20,7 @@ def main():
     dynamic_crypto = bool(cfg.get("dynamic_crypto_universe", False))
     if dynamic_crypto:
         try:
-            assets = tuple(crypto_universe())
+            assets = tuple(crypto_universe(cfg.get("exclude_symbols", [])))
             logging.info("Dynamic Alpaca crypto universe loaded: %d active tradable USD pairs", len(assets))
         except Exception:
             logging.exception("Unable to load dynamic Alpaca crypto universe")
@@ -47,7 +47,7 @@ def main():
             if telegram.configured:
                 telegram.poll_once()
             if dynamic_crypto:
-                assets = tuple(crypto_universe())
+                assets = tuple(crypto_universe(cfg.get("exclude_symbols", [])))
                 logging.info("Cycle %d dynamic crypto universe: %d active tradable USD pairs", cycle, len(assets))
             result = run_auto_demo_cycle(
                 assets=assets,

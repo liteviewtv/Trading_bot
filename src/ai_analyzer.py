@@ -4,16 +4,13 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-
 import requests
-
 
 @dataclass(frozen=True)
 class AIAnalysis:
     decision: str
     confidence: float
     reason: str
-
 
 class AIAnalyzer:
     def __init__(self, api_key=None, model=None, timeout=20):
@@ -64,16 +61,32 @@ class AIAnalyzer:
         return json.dumps({
             "symbol": str(context.get("symbol", "")),
             "strategy_action": getattr(signal, "action", None),
-            "price": getattr(signal, "price", None),
+            "strategy_price": getattr(signal, "price", None),
             "strategy_reason": getattr(signal, "reason", None),
-            "context": context,
-        }, default=str)
+            "verified_alpaca_market_context": context.get("market", {}),
+        }, default=str, separators=(",", ":"))
+
+    @staticmethod
+    def _system_prompt():
+        return ("You are the final risk-aware reviewer for an automated crypto paper-trading bot. "
+                "The market values in verified_alpaca_market_context were calculated directly from "
+                "the Alpaca bars already fetched by the bot; treat those values as verified evidence. "
+                "Do NOT reject a signal merely because you cannot independently fetch or verify the "
+                "market data. Do NOT invent missing values. Review the supplied strategy signal and "
+                "market context for consistency and risk. Return ONLY valid JSON with keys decision, "
+                "confidence, reason. decision must be BUY, SELL, or HOLD. Approve BUY only when the "
+                "supplied BUY conditions are actually true and the context does not show an obvious "
+                "contradiction. Prefer HOLD when momentum is weak, the breakout is marginal, or the "
+                "setup is internally inconsistent. Never bypass risk controls and never place orders.")
 
     def _analyze_responses(self, signal, context):
         payload = {
             "model": self.model,
-            "instructions": ("You are a conservative crypto trading signal reviewer. Return ONLY valid JSON with keys decision, confidence, reason. decision must be BUY, SELL, or HOLD. Never invent market data. The strategy signal is the primary signal; approve only when the supplied evidence supports it. Do not override risk controls."),
-            "input": self._context_payload(signal, context),
+            "input": [
+                {"role": "system", "content": self._system_prompt()},
+                {"role": "user", "content": self._context_payload(signal, context)},
+            ],
+            "temperature": 0,
         }
         response = requests.post(f"{self.base_url}/responses", headers=self._headers(), json=payload, timeout=self.timeout)
         response.raise_for_status()
@@ -84,9 +97,11 @@ class AIAnalyzer:
             "model": self.model,
             "temperature": 0,
             "messages": [
-                {"role": "system", "content": "You are a conservative crypto trading signal reviewer. Return ONLY valid JSON with keys decision, confidence, reason. decision must be BUY, SELL, or HOLD. Never invent market data. The strategy signal is the primary signal; approve only when the supplied evidence supports it. Do not override risk controls."},
+                {"role": "system", "content": self._system_prompt()},
                 {"role": "user", "content": self._context_payload(signal, context)},
             ],
+            "response_format": {"type": "json_object"},
+            "include_reasoning": False,
         }
         response = requests.post(f"{self.base_url}/chat/completions", headers=self._headers(), json=payload, timeout=self.timeout)
         response.raise_for_status()

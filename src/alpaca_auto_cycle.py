@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from time import monotonic
 import logging
+import hashlib
 from .ai_filter import AIFilterDecision, filter_signal
 from .alpaca_client import bars, positions, open_orders, submit_market_order, close_position, tradable_asset
 from .alpaca_position_manager import inspect_positions
@@ -90,11 +91,9 @@ def scan_assets(assets, *, min_return_pct=0.1, sma_period=50, breakout_lookback=
 
 def _client_order_id(symbol, action, signal):
     clean = symbol.replace("/", "-").replace("_", "-")
-    bar_key = "signal"
-    reason = getattr(signal, "reason", "")
-    if reason:
-        bar_key = str(abs(hash(reason)))[:10]
-    bucket = int(monotonic() // _ORDER_BUCKET_SECONDS)
+    reason = str(getattr(signal, "reason", "signal"))
+    bar_key = hashlib.sha1(reason.encode("utf-8")).hexdigest()[:10]
+    bucket = int(datetime.now(timezone.utc).timestamp()) // _ORDER_BUCKET_SECONDS
     return f"tb-{action.lower()}-{clean}-{bucket}-{bar_key}"[:128]
 
 def _notify_block(notifier, symbol, reason):

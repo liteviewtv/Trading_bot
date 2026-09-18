@@ -403,8 +403,7 @@ def run_auto_demo_cycle(
         notify(
             "❌ GROQ AI UNAVAILABLE",
             f"AI analysis failed for {len(ai_failures)} signal(s).\n"
-            f"Symbols: {symbols}{suffix}
-"
+            f"Symbols: {symbols}{suffix}\n"
             "Trading was blocked for those signals. Telegram alerts are suppressed until Groq recovers.",
         )
         _AI_FAILURE_ALERT_ACTIVE = True

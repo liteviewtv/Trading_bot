@@ -1,10 +1,10 @@
 """Long-polling Telegram command worker for the demo trading bot."""
 
 from __future__ import annotations
-
 import json
 import logging
 import os
+import time
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -16,7 +16,6 @@ from .telegram_notify import TelegramNotifier
 
 log = logging.getLogger(__name__)
 
-
 class TelegramPollingBot:
     def __init__(self, token=None, chat_id=None, control=None, timeout=25):
         self.token = token or os.getenv("TELEGRAM_BOT_TOKEN")
@@ -26,6 +25,7 @@ class TelegramPollingBot:
         self.offset = 0
         self.notifier = TelegramNotifier(self.token, self.chat_id)
         self._started = False
+        self._last_conflict_log = 0.0
 
     @property
     def configured(self):
@@ -40,7 +40,7 @@ class TelegramPollingBot:
                 result = json.loads(response.read().decode())
         except HTTPError as exc:
             if exc.code == 409 and method == "getUpdates":
-                raise RuntimeError("Telegram polling conflict: another poller or webhook is active") from exc
+                raise RuntimeError("Telegram polling conflict: another getUpdates consumer is active") from exc
             raise
         if not result.get("ok"):
             raise RuntimeError(f"Telegram API rejected {method}: {result.get('description', 'unknown error')}")
@@ -53,6 +53,17 @@ class TelegramPollingBot:
         self._started = True
         log.info("Telegram polling initialized successfully for configured chat")
 
+    def _diagnose_conflict(self):
+        try:
+            info = self._request("getWebhookInfo")
+            url = (info or {}).get("url", "")
+            if url:
+                log.error("Telegram 409 diagnosis: webhook is configured at %s", url)
+            else:
+                log.error("Telegram 409 diagnosis: no webhook is configured; another process is calling getUpdates with this bot token")
+        except Exception as exc:
+            log.error("Telegram 409 diagnosis failed: %s", exc)
+
     def poll_once(self, summary=None, positions=None):
         if not self.configured:
             log.warning("Telegram polling disabled: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing")
@@ -63,7 +74,12 @@ class TelegramPollingBot:
         except RuntimeError as exc:
             if str(exc).startswith("Telegram polling conflict:"):
                 self._started = False
-                log.error("Telegram polling conflict: another process/webhook is consuming updates")
+                now = time.monotonic()
+                if now - self._last_conflict_log > 60:
+                    self._last_conflict_log = now
+                    log.error("Telegram polling conflict: another process/webhook is consuming updates")
+                    self._diagnose_conflict()
+                time.sleep(5)
                 return 0
             log.exception("Telegram polling request failed")
             return 0

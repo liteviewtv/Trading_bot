@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from src.alpaca_auto_cycle import run_auto_demo_cycle
 from src.alpaca_client import account, crypto_universe
+from src.ai_analyzer import AIAnalyzer
 from src.telegram_polling import TelegramPollingBot
 
 ROOT = Path(__file__).resolve().parent
@@ -35,6 +36,10 @@ def main():
     min_return_pct = float(cfg.get("min_return_pct", 0.1))
     sma_period = int(cfg.get("sma_period", 50))
     breakout_lookback = int(cfg.get("breakout_lookback", 20))
+    ai_enabled = os.getenv("AI_ENABLED","false").strip().lower() in {"1","true","yes","on"}
+    ai_analyzer = AIAnalyzer() if ai_enabled else None
+    if ai_analyzer:
+        logging.info("AI signal filter enabled: model=%s endpoint=%s", ai_analyzer.model, ai_analyzer.base_url)
     telegram = TelegramPollingBot()
     if telegram.configured:
         try:
@@ -61,6 +66,7 @@ def main():
                 sma_period=sma_period,
                 breakout_lookback=breakout_lookback,
                 control=telegram.control,
+                ai_analyzer=ai_analyzer,
             )
             logging.info("Cycle %d: scanned=%d executed=%d skipped=%d", cycle, len(result.scanned), len(result.executed), len(result.skipped))
         except Exception:

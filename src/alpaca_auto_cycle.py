@@ -45,8 +45,13 @@ def run_auto_demo_cycle(assets, execute=False, max_orders=2, max_open_positions=
     for item in scanned:
         symbol=item.symbol or item.requested
         if item.signal is None:
-            reason=item.error or "No trading signal"; skipped.append(f"{item.requested}: no signal"); journal(symbol,"skipped",reason=reason)
-            if reason != "Asset unavailable or not tradable": notify("⚠️ SIGNAL SKIPPED",f"Symbol: {symbol}\nReason: {reason}")
+            reason=item.error or "No trading signal"
+            skipped.append(f"{item.requested}: no signal")
+            journal(symbol,"skipped",reason=reason)
+            # A normal no-signal result is expected and is deliberately silent.
+            # Telegram is reserved for actionable signals, errors, blocks and orders.
+            if reason not in {"Asset unavailable or not tradable", "No trading signal"}:
+                notify("⚠️ SIGNAL SKIPPED",f"Symbol: {symbol}\nReason: {reason}")
             continue
         if not execute:
             skipped.append(f"{item.requested}: execution disabled"); journal(symbol,"signal",reason="execution disabled",signal=item.signal); notify("🤖 PAPER SIGNAL",f"Symbol: {symbol}\nAction: {item.signal.action}\nMode: Alpaca paper"); continue

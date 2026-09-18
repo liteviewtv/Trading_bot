@@ -65,7 +65,7 @@ def run_auto_demo_cycle(assets, execute=False, max_orders=2, max_open_positions=
         if not execute:
             skipped.append(f"{item.requested}: execution disabled"); journal(symbol,"signal",reason="execution disabled",signal=item.signal); notify("🤖 PAPER SIGNAL",f"Symbol: {symbol}\nAction: {item.signal.action}\nMode: Alpaca paper"); continue
         if len(executed) >= max_orders:
-            skipped.append(f"{item.requested}: order limit reached"); journal(symbol,"skipped",reason="order limit reached",signal=item.signal); log.info("Trade rejected | symbol=%s | reason=order limit reached", symbol); notify("⚠️ ORDER SKIPPED",f"Symbol: {symbol}\nReason: order limit reached"); continue
+            skipped.append(f"{item.requested}: order limit reached"); journal(symbol,"skipped",reason="order limit reached",signal=item.signal); log.info("Trade rejected | symbol=%s | reason=order limit reached", symbol); continue
         if ai_analyzer is not None:
             try:
                 analysis=ai_analyzer.analyze(item.signal,{"symbol":symbol}); ai_decisions=dict(ai_decisions or {}); ai_decisions[symbol]=AIFilterDecision(str(analysis.decision).upper(),float(analysis.confidence),str(analysis.reason))

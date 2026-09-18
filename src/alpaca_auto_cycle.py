@@ -244,6 +244,8 @@ def run_auto_demo_cycle(
         min_return_pct=min_return_pct,
         sma_period=sma_period,
         breakout_lookback=breakout_lookback,
+        breakout_margin_pct=breakout_margin_pct,
+        min_volume_ratio=min_volume_ratio,
     )
     executed = []
     skipped = []
@@ -330,9 +332,6 @@ def run_auto_demo_cycle(
                     float(analysis.confidence),
                     str(analysis.reason),
                 )
-                if _AI_FAILURE_ALERT_ACTIVE:
-                    notify("✅ AI ANALYSIS RECOVERED", "Groq AI is responding again.")
-                    _AI_FAILURE_ALERT_ACTIVE = False
             except Exception as exc:
                 ai_failures.append((symbol, str(exc)))
                 skipped.append(f"{item.requested}: AI analysis failed")
@@ -416,15 +415,19 @@ def run_auto_demo_cycle(
             f"Symbol: {symbol}\nAction: {item.signal.action}\nOrder submitted.",
         )
 
-    if ai_failures and not _AI_FAILURE_ALERT_ACTIVE:
-        symbols = ", ".join(symbol for symbol, _ in ai_failures[:8])
-        suffix = f" (+{len(ai_failures)-8} more)" if len(ai_failures) > 8 else ""
-        notify(
-            "❌ GROQ AI UNAVAILABLE",
-            f"AI analysis failed for {len(ai_failures)} signal(s).\n"
-            f"Symbols: {symbols}{suffix}\n"
-            "Trading was blocked for those signals. Telegram alerts are suppressed until Groq recovers.",
-        )
-        _AI_FAILURE_ALERT_ACTIVE = True
+    if ai_failures:
+        if not _AI_FAILURE_ALERT_ACTIVE:
+            symbols = ", ".join(symbol for symbol, _ in ai_failures[:8])
+            suffix = f" (+{len(ai_failures)-8} more)" if len(ai_failures) > 8 else ""
+            notify(
+                "❌ GROQ AI UNAVAILABLE",
+                f"AI analysis failed for {len(ai_failures)} signal(s).\n"
+                f"Symbols: {symbols}{suffix}\n"
+                "Trading was blocked for those signals. Telegram alerts are suppressed until Groq recovers.",
+            )
+            _AI_FAILURE_ALERT_ACTIVE = True
+    elif _AI_FAILURE_ALERT_ACTIVE:
+        notify("✅ AI ANALYSIS RECOVERED", "Groq AI is responding again.")
+        _AI_FAILURE_ALERT_ACTIVE = False
 
     return AutoCycleResult(scanned, executed, skipped)

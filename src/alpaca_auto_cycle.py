@@ -86,7 +86,7 @@ def _market_context(frame, sma_period, breakout_lookback):
     return context
 
 
-def scan_assets(assets, *, min_return_pct=0.1, sma_period=50, breakout_lookback=10):
+def scan_assets(assets, *, min_return_pct=0.1, sma_period=50, breakout_lookback=10, breakout_margin_pct=0.15, min_volume_ratio=0.8):
     results = []
     for symbol in assets:
         try:
@@ -110,6 +110,8 @@ def scan_assets(assets, *, min_return_pct=0.1, sma_period=50, breakout_lookback=
                 sma_period=sma_period,
                 breakout_lookback=breakout_lookback,
                 min_return_pct=min_return_pct,
+                breakout_margin_pct=breakout_margin_pct,
+                min_volume_ratio=min_volume_ratio,
             )
             results.append(AssetResult(symbol, symbol, signal, diagnostic=diagnostic, context=market_context))
         except Exception as exc:

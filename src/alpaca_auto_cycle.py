@@ -79,5 +79,5 @@ def run_auto_demo_cycle(assets, execute=False, max_orders=2, max_open_positions=
         state=inspect_positions(symbol,max_open_positions=max_open_positions)
         if not state.can_open:
             skipped.append(f"{item.requested}: {state.reason}"); journal(symbol,"skipped",reason=state.reason,signal=item.signal); log.info("Trade rejected | symbol=%s | reason=%s", symbol, state.reason); notify("🛡️ TRADE BLOCKED",f"Symbol: {symbol}\nReason: {state.reason}"); continue
-        result=submit_market_order(symbol,item.signal.action,1,client_order_id=f"tradingbot-{uuid4().hex[:20]}"); executed.append(result); journal(symbol,"executed",signal=item.signal,result=str(result)); notify("✅ ALPACA PAPER TRADE",f"Symbol: {symbol}\nAction: {item.signal.action}\nOrder submitted.")
+        result=submit_market_order(symbol,item.signal.action,notional=25,client_order_id=f"tradingbot-{uuid4().hex[:20]}"); executed.append(result); journal(symbol,"executed",signal=item.signal,result=str(result)); notify("✅ ALPACA PAPER TRADE",f"Symbol: {symbol}\nAction: {item.signal.action}\nOrder submitted.")
     return AutoCycleResult(scanned,executed,skipped)

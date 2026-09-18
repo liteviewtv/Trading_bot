@@ -1,5 +1,17 @@
 {
-  "symbols": ["BTC/USD", "ETH/USD", "SOL/USD", "LTC/USD", "DOGE/USD", "AVAX/USD", "LINK/USD", "UNI/USD"],
+  "symbols": [
+    "BTC/USD",
+    "ETH/USD",
+    "SOL/USD",
+    "XRP/USD",
+    "ADA/USD",
+    "AVAX/USD",
+    "LINK/USD",
+    "DOGE/USD",
+    "BCH/USD",
+    "LTC/USD",
+    "PAXG/USD"
+  ],
   "max_concurrent_positions": 5,
   "max_trades_per_cycle": 1,
   "execute_paper_orders": true,

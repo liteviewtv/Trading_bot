@@ -13,7 +13,7 @@ class AIAnalyzer:
     def __init__(self, api_key=None, model=None, timeout=20):
         self.api_key=api_key or os.getenv("GROQ_API_KEY")
         self.base_url="https://api.groq.com/openai/v1"
-        self.model=model or os.getenv("GROQ_MODEL","llama-3.1-8b-instant")
+        self.model=model or os.getenv("GROQ_MODEL","openai/gpt-oss-20b")
         self.timeout=timeout
         if not self.api_key: raise RuntimeError("GROQ_API_KEY is not configured")
 

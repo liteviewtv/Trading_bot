@@ -31,6 +31,9 @@ jobs:
           ALPACA_API_SECRET: ${{ secrets.ALPACA_API_SECRET }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          AI_ENABLED: 'true'
+          GROQ_MODEL: 'llama-3.1-8b-instant'
           BOT_MAX_CYCLES: '0'
           TELEGRAM_POLL_INTERVAL_SECONDS: '10'
         run: python bot.py

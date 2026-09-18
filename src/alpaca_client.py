@@ -26,8 +26,12 @@ def positions(): return request("GET","/v2/positions")
 def available_instruments(asset_class="crypto"):
     return request("GET","/v2/assets",params={"status":"active","asset_class":asset_class}) or []
 
-def crypto_universe():
-    return [a["symbol"] for a in available_instruments("crypto") if a.get("status")=="active" and a.get("tradable") and "/" in a.get("symbol","") and a.get("symbol","").endswith("/USD")]
+def crypto_universe(exclude_symbols=None):
+    excluded=set(exclude_symbols or ())
+    return [a["symbol"] for a in available_instruments("crypto")
+            if a.get("status")=="active" and a.get("tradable")
+            and "/" in a.get("symbol","") and a.get("symbol","").endswith("/USD")
+            and a["symbol"] not in excluded]
 
 def open_position(symbol):
     response=requests.get(f"{PAPER_BASE_URL}/v2/positions/{symbol}",headers=_headers(),timeout=20)
@@ -40,7 +44,9 @@ def bars(symbol,timeframe="15Min",limit=100):
     end=datetime.now(timezone.utc)
     minutes=15 if timeframe.endswith("Min") else 1440
     start=end-timedelta(minutes=max(limit*minutes*2, 24*60))
-    response=requests.get(f"{DATA_BASE_URL}/v1beta3/crypto/us/bars",headers=_headers(),params={"symbols":symbol,"timeframe":timeframe,"limit":limit,"start":start.isoformat(),"end":end.isoformat(),"sort":"asc"},timeout=20)
+    response=requests.get(f"{DATA_BASE_URL}/v1beta3/crypto/us/bars",headers=_headers(),
+                          params={"symbols":symbol,"timeframe":timeframe,"limit":limit,
+                                  "start":start.isoformat(),"end":end.isoformat(),"sort":"asc"},timeout=20)
     if not response.ok: raise RuntimeError(f"Alpaca crypto market data {response.status_code}: {response.text[:500]}")
     return (response.json().get("bars") or {}).get(symbol,[])
 

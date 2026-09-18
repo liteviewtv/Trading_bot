@@ -102,6 +102,8 @@ def scan_assets(assets, *, min_return_pct=0.1, sma_period=50, breakout_lookback=
                 sma_period=sma_period,
                 breakout_lookback=breakout_lookback,
                 min_return_pct=min_return_pct,
+                breakout_margin_pct=breakout_margin_pct,
+                min_volume_ratio=min_volume_ratio,
             )
             diagnostic = None if signal is not None else diagnose_signal(
                 symbol, frame,
@@ -155,10 +157,12 @@ def manage_open_positions(*, stop_loss_pct, take_profit_pct, notifier, journal):
         if not broker_symbol or market_symbol in pending:
             continue
         try:
-            frame = candles_to_dataframe(bars(market_symbol, limit=3))
-            if frame.empty:
-                continue
-            price = float(frame.iloc[-1]["close"])
+            price = float(position.get("current_price") or 0)
+            if price <= 0:
+                frame = candles_to_dataframe(bars(market_symbol, limit=3))
+                if frame.empty:
+                    continue
+                price = float(frame.iloc[-1]["close"])
             entry = float(position.get("avg_entry_price") or 0)
             if entry <= 0:
                 continue
@@ -210,7 +214,7 @@ def _daily_loss_limit_hit(max_daily_loss_pct):
 
 
 def _notify_ai_rejection(notifier, symbol, reason):
-    key = (symbol, str(reason))
+    key = (symbol, "AI_REJECT")
     now = monotonic()
     if now - _AI_REJECT_ALERT_LAST.get(key, 0) >= _ORDER_BUCKET_SECONDS:
         _AI_REJECT_ALERT_LAST[key] = now
@@ -226,6 +230,7 @@ def run_auto_demo_cycle(
     journal_path=None, ai_decisions=None, ai_min_confidence=0.60,
     ai_analyzer=None, notifier=None, control=None,
     stop_loss_pct=1.5, take_profit_pct=3.0, max_daily_loss_pct=0,
+    breakout_margin_pct=0.15, min_volume_ratio=0.8,
 ):
     global _AI_FAILURE_ALERT_ACTIVE
     if max_orders < 0 or max_open_positions < 0:

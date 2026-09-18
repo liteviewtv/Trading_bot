@@ -67,6 +67,8 @@ def main():
                 breakout_lookback=breakout_lookback,
                 control=telegram.control,
                 ai_analyzer=ai_analyzer,
+                stop_loss_pct=float(cfg.get("stop_loss_pct", 1.5)),
+                take_profit_pct=float(cfg.get("take_profit_pct", 3.0)),
             )
             logging.info("Cycle %d: scanned=%d executed=%d skipped=%d", cycle, len(result.scanned), len(result.executed), len(result.skipped))
         except Exception:

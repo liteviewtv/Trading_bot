@@ -49,7 +49,7 @@ def _market_context(frame, sma_period, breakout_lookback):
     if frame.empty or len(frame) < max(sma_period, breakout_lookback) + 1:
         return {}
     data = frame.copy()
-    data["sma"] = data["close"].rolling(sma_period).mean()
+    data["sma"] = data["close"].rolling(sma_period).mean()\n    data["ema_fast"] = data["close"].ewm(span=sma_period, adjust=False).mean()\n    data["ema_slow"] = data["close"].ewm(span=max(200, sma_period * 4), adjust=False).mean()
     latest = data.iloc[-1]
     previous = data.iloc[-2]
     prior = data.iloc[-breakout_lookback-1:-1]
@@ -66,7 +66,7 @@ def _market_context(frame, sma_period, breakout_lookback):
         "timeframe": "15Min",
         "latest_close": close,
         "previous_close": previous_close,
-        "sma": sma,
+        "sma": sma,\n        "ema_fast": float(latest["ema_fast"]),\n        "ema_slow": float(latest["ema_slow"]),
         "sma_distance_pct": sma_distance,
         "sma_slope_5bars_pct": sma_slope,
         "prior_high": prior_high,

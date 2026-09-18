@@ -142,11 +142,12 @@ def generate_signal(
     # Route B: oversold reversal. We wait for the RSI cross-back instead of
     # buying merely because RSI is low. This is materially safer than entering
     # while RSI is still falling.
+    bb_lower = float(latest["bb_lower"]) if pd.notna(latest["bb_lower"]) else float("-inf")
     reversal_buy = (
         previous_rsi < 30 <= rsi
         and one_bar_return > 0
         and not_severely_below_ema200
-        and close >= float(latest["bb_lower"]) if pd.notna(latest["bb_lower"]) else False
+        and close >= bb_lower
     )
 
     if continuation_buy:

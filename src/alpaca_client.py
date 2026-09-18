@@ -25,6 +25,9 @@ def positions(): return request("GET","/v2/positions")
 def available_instruments(asset_class="crypto"):
     return request("GET","/v2/assets",params={"status":"active","asset_class":asset_class}) or []
 
+def crypto_universe():
+    return [a["symbol"] for a in available_instruments("crypto") if a.get("status")=="active" and a.get("tradable") and "/" in a.get("symbol","") and a.get("symbol","").endswith("/USD")]
+
 def open_position(symbol):
     response=requests.get(f"{PAPER_BASE_URL}/v2/positions/{symbol}",headers=_headers(),timeout=20)
     if response.status_code==404: return None
@@ -36,21 +39,15 @@ def bars(symbol,timeframe="15Min",limit=100):
         response=requests.get(f"{DATA_BASE_URL}/v1beta3/crypto/us/bars",headers=_headers(),params={"symbols":symbol,"timeframe":timeframe,"limit":limit},timeout=20)
         if not response.ok: raise RuntimeError(f"Alpaca crypto market data {response.status_code}: {response.text[:500]}")
         return (response.json().get("bars") or {}).get(symbol,[])
-    response=requests.get(f"{DATA_BASE_URL}/v2/stocks/{symbol}/bars",headers=_headers(),params={"timeframe":timeframe,"limit":limit,"feed":"iex"},timeout=20)
-    if not response.ok: raise RuntimeError(f"Alpaca market data {response.status_code}: {response.text[:500]}")
-    return response.json().get("bars",[])
+    raise ValueError(f"Unsupported non-crypto symbol: {symbol}")
 
 def tradable_asset(symbol):
-    response=requests.get(f"{PAPER_BASE_URL}/v2/assets/{symbol}",headers=_headers(),timeout=20)
-    if response.status_code==404 and "/" in symbol:
-        for asset in available_instruments("crypto"):
-            if asset.get("symbol")==symbol: return asset
-        return None
-    if response.status_code==404: return None
-    if not response.ok: raise RuntimeError(f"Alpaca asset API {response.status_code}: {response.text[:500]}")
-    return response.json()
+    assets=available_instruments("crypto")
+    for asset in assets:
+        if asset.get("symbol")==symbol: return asset if asset.get("tradable") else None
+    return None
 
 def submit_market_order(symbol,side,qty,client_order_id=None):
-    payload={"symbol":symbol,"qty":str(qty),"side":side.lower(),"type":"market","time_in_force":"gtc" if "/" in symbol else "day"}
+    payload={"symbol":symbol,"qty":str(qty),"side":side.lower(),"type":"market","time_in_force":"gtc"}
     if client_order_id: payload["client_order_id"]=client_order_id
     return request("POST","/v2/orders",data=payload)

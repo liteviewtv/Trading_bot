@@ -1,5 +1,10 @@
 {
   "dynamic_crypto_universe": true,
+  "exclude_symbols": [
+    "USDT/USD",
+    "USDC/USD",
+    "USDG/USD"
+  ],
   "symbols": [],
   "max_concurrent_positions": 5,
   "max_trades_per_cycle": 1,

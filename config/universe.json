@@ -14,5 +14,5 @@
   "max_daily_loss_pct": 2.0,
   "min_return_pct": 0.1,
   "sma_period": 50,
-  "breakout_lookback": 20
+  "breakout_lookback": 5
 }

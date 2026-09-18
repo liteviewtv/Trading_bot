@@ -11,6 +11,7 @@ from .trade_journal import append_entry, make_entry
 from .telegram_notify import TelegramNotifier
 
 log = logging.getLogger(__name__)
+_AI_FAILURE_ALERT_ACTIVE = False
 
 @dataclass(frozen=True)
 class AssetResult:
@@ -43,8 +44,9 @@ def scan_assets(assets, *, min_return_pct=0.1, sma_period=50, breakout_lookback=
     return results
 
 def run_auto_demo_cycle(assets, execute=False, max_orders=2, max_open_positions=5, min_return_pct=0.1, sma_period=50, breakout_lookback=20, journal_path=None, ai_decisions=None, ai_min_confidence=0.60, ai_analyzer=None, notifier=None, control=None):
+    global _AI_FAILURE_ALERT_ACTIVE
     if max_orders < 0 or max_open_positions < 0: raise ValueError("position/order limits must be non-negative")
-    notifier=notifier or TelegramNotifier(); scanned=scan_assets(assets,min_return_pct=min_return_pct,sma_period=sma_period,breakout_lookback=breakout_lookback); executed=[]; skipped=[]
+    notifier=notifier or TelegramNotifier(); scanned=scan_assets(assets,min_return_pct=min_return_pct,sma_period=sma_period,breakout_lookback=breakout_lookback); executed=[]; skipped=[]; ai_failures=[]
     def journal(symbol,event,reason=None,signal=None,result=None):
         if journal_path is not None: append_entry(journal_path,make_entry(event,symbol,reason=reason,action=getattr(signal,"action",None),result=result))
     def notify(event,details=""):
@@ -68,9 +70,18 @@ def run_auto_demo_cycle(assets, execute=False, max_orders=2, max_open_positions=
             skipped.append(f"{item.requested}: order limit reached"); journal(symbol,"skipped",reason="order limit reached",signal=item.signal); log.info("Trade rejected | symbol=%s | reason=order limit reached", symbol); continue
         if ai_analyzer is not None:
             try:
-                analysis=ai_analyzer.analyze(item.signal,{"symbol":symbol}); ai_decisions=dict(ai_decisions or {}); ai_decisions[symbol]=AIFilterDecision(str(analysis.decision).upper(),float(analysis.confidence),str(analysis.reason))
+                analysis=ai_analyzer.analyze(item.signal,{"symbol":symbol,"strategy_action":item.signal.action,"price":float(item.signal.price),"strategy_reason":item.signal.reason})
+                ai_decisions=dict(ai_decisions or {})
+                ai_decisions[symbol]=AIFilterDecision(str(analysis.decision).upper(),float(analysis.confidence),str(analysis.reason))
+                if _AI_FAILURE_ALERT_ACTIVE:
+                    notify("✅ AI ANALYSIS RECOVERED",f"Symbol: {symbol}\nGroq AI is responding again.")
+                    _AI_FAILURE_ALERT_ACTIVE=False
             except Exception as exc:
-                skipped.append(f"{item.requested}: AI analysis failed"); journal(symbol,"skipped",reason=f"AI analysis failed: {exc}",signal=item.signal); log.info("Trade rejected | symbol=%s | reason=AI analysis failed: %s", symbol, exc); notify("❌ AI ANALYSIS FAILED",f"Symbol: {symbol}\nError: {exc}"); continue
+                ai_failures.append((symbol,str(exc)))
+                skipped.append(f"{item.requested}: AI analysis failed")
+                journal(symbol,"skipped",reason=f"AI analysis failed: {exc}",signal=item.signal)
+                log.info("Trade rejected | symbol=%s | reason=AI analysis failed: %s", symbol, exc)
+                continue
         if ai_decisions is not None:
             decision=ai_decisions.get(symbol) or ai_decisions.get(item.requested)
             if decision is None: skipped.append(f"{item.requested}: AI decision unavailable"); journal(symbol,"skipped",reason="AI decision unavailable",signal=item.signal); log.info("Trade rejected | symbol=%s | reason=AI decision unavailable", symbol); continue
@@ -80,4 +91,9 @@ def run_auto_demo_cycle(assets, execute=False, max_orders=2, max_open_positions=
         if not state.can_open:
             skipped.append(f"{item.requested}: {state.reason}"); journal(symbol,"skipped",reason=state.reason,signal=item.signal); log.info("Trade rejected | symbol=%s | reason=%s", symbol, state.reason); notify("🛡️ TRADE BLOCKED",f"Symbol: {symbol}\nReason: {state.reason}"); continue
         result=submit_market_order(symbol,item.signal.action,notional=25,client_order_id=f"tradingbot-{uuid4().hex[:20]}"); executed.append(result); journal(symbol,"executed",signal=item.signal,result=str(result)); notify("✅ ALPACA PAPER TRADE",f"Symbol: {symbol}\nAction: {item.signal.action}\nOrder submitted.")
+    if ai_failures and not _AI_FAILURE_ALERT_ACTIVE:
+        symbols=", ".join(symbol for symbol,_ in ai_failures[:8])
+        suffix=f" (+{len(ai_failures)-8} more)" if len(ai_failures) > 8 else ""
+        notify("❌ GROQ AI UNAVAILABLE",f"AI analysis failed for {len(ai_failures)} signal(s).\nSymbols: {symbols}{suffix}\nTrading was blocked for those signals. Telegram alerts are suppressed until Groq recovers.")
+        _AI_FAILURE_ALERT_ACTIVE=True
     return AutoCycleResult(scanned,executed,skipped)

@@ -86,7 +86,7 @@ def _market_context(frame, sma_period, breakout_lookback):
     return context
 
 
-def scan_assets(assets, *, min_return_pct=0.1, sma_period=50, breakout_lookback=10, breakout_margin_pct=0.15, min_volume_ratio=0.8):
+def scan_assets(assets, *, min_return_pct=0.05, sma_period=50, breakout_lookback=20, breakout_margin_pct=0.15, min_volume_ratio=0.8):
     results = []
     for symbol in assets:
         try:
@@ -232,7 +232,7 @@ def run_auto_demo_cycle(
     journal_path=None, ai_decisions=None, ai_min_confidence=0.60,
     ai_analyzer=None, notifier=None, control=None,
     stop_loss_pct=1.5, take_profit_pct=3.0, max_daily_loss_pct=0,
-    breakout_margin_pct=0.15, min_volume_ratio=0.8,
+    breakout_margin_pct=0.05, min_volume_ratio=0.5,
 ):
     global _AI_FAILURE_ALERT_ACTIVE
     if max_orders < 0 or max_open_positions < 0:

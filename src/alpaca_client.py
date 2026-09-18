@@ -2,6 +2,7 @@
 from __future__ import annotations
 import os
 import requests
+from urllib.parse import quote
 from datetime import datetime, timedelta, timezone
 
 PAPER_BASE_URL = "https://paper-api.alpaca.markets"
@@ -34,6 +35,16 @@ def crypto_universe(exclude_symbols=None):
             if a.get("status")=="active" and a.get("tradable")
             and "/" in a.get("symbol","") and a.get("symbol","").endswith("/USD")
             and a["symbol"] not in excluded]
+
+def close_position(symbol, *, qty=None, percentage=None):
+    if qty is not None and percentage is not None:
+        raise ValueError("qty and percentage are mutually exclusive")
+    params = {}
+    if qty is not None:
+        params["qty"] = str(qty)
+    if percentage is not None:
+        params["percentage"] = str(percentage)
+    return request("DELETE", f"/v2/positions/{quote(symbol, safe='')}", params=params or None)
 
 def open_position(symbol):
     response=requests.get(f"{PAPER_BASE_URL}/v2/positions/{symbol}",headers=_headers(),timeout=20)

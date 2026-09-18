@@ -5,7 +5,7 @@ on:
 
 concurrency:
   group: paper-trading-cycle
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   paper-cycle:

@@ -86,4 +86,10 @@ def tick(symbol: str):
 
 
 def available_instruments():
-    return [s.name for s in symbols()]
+    """Return the broker's real MT5 instrument names using the configured demo account."""
+    settings = MT5Settings.from_env()
+    connect(settings)
+    try:
+        return [s.name for s in symbols()]
+    finally:
+        disconnect()

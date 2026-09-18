@@ -98,7 +98,8 @@ def scan_assets(assets, *, min_return_pct=0.05, sma_period=50, breakout_lookback
             if not asset or not asset.get("tradable"):
                 results.append(AssetResult(symbol, None, None, "Asset unavailable or not tradable"))
                 continue
-            raw_bars = bars(symbol)
+            required_bars = max(sma_period * 4 + 1, breakout_lookback + 1, 201)
+            raw_bars = bars(symbol, limit=required_bars)
             frame = candles_to_dataframe(raw_bars)
             market_context = _market_context(frame, sma_period, breakout_lookback)
             signal = generate_alpaca_signal(

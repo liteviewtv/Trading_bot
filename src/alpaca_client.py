@@ -22,8 +22,8 @@ def request(method,path,*,data=None,params=None):
 def account(): return request("GET","/v2/account")
 def positions(): return request("GET","/v2/positions")
 
-def available_instruments():
-    return request("GET","/v2/assets",params={"status":"active","asset_class":"us_equity"}) or []
+def available_instruments(asset_class="crypto"):
+    return request("GET","/v2/assets",params={"status":"active","asset_class":asset_class}) or []
 
 def open_position(symbol):
     response=requests.get(f"{PAPER_BASE_URL}/v2/positions/{symbol}",headers=_headers(),timeout=20)
@@ -32,17 +32,25 @@ def open_position(symbol):
     return response.json()
 
 def bars(symbol,timeframe="15Min",limit=100):
+    if "/" in symbol:
+        response=requests.get(f"{DATA_BASE_URL}/v1beta3/crypto/us/bars",headers=_headers(),params={"symbols":symbol,"timeframe":timeframe,"limit":limit},timeout=20)
+        if not response.ok: raise RuntimeError(f"Alpaca crypto market data {response.status_code}: {response.text[:500]}")
+        return (response.json().get("bars") or {}).get(symbol,[])
     response=requests.get(f"{DATA_BASE_URL}/v2/stocks/{symbol}/bars",headers=_headers(),params={"timeframe":timeframe,"limit":limit,"feed":"iex"},timeout=20)
     if not response.ok: raise RuntimeError(f"Alpaca market data {response.status_code}: {response.text[:500]}")
     return response.json().get("bars",[])
 
 def tradable_asset(symbol):
     response=requests.get(f"{PAPER_BASE_URL}/v2/assets/{symbol}",headers=_headers(),timeout=20)
+    if response.status_code==404 and "/" in symbol:
+        for asset in available_instruments("crypto"):
+            if asset.get("symbol")==symbol: return asset
+        return None
     if response.status_code==404: return None
     if not response.ok: raise RuntimeError(f"Alpaca asset API {response.status_code}: {response.text[:500]}")
     return response.json()
 
 def submit_market_order(symbol,side,qty,client_order_id=None):
-    payload={"symbol":symbol,"qty":str(qty),"side":side.lower(),"type":"market","time_in_force":"day"}
+    payload={"symbol":symbol,"qty":str(qty),"side":side.lower(),"type":"market","time_in_force":"gtc" if "/" in symbol else "day"}
     if client_order_id: payload["client_order_id"]=client_order_id
     return request("POST","/v2/orders",data=payload)

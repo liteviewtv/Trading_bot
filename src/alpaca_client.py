@@ -55,7 +55,15 @@ def tradable_asset(symbol):
         if asset.get("symbol")==symbol: return asset if asset.get("tradable") else None
     return None
 
-def submit_market_order(symbol,side,qty,client_order_id=None):
-    payload={"symbol":symbol,"qty":str(qty),"side":side.lower(),"type":"market","time_in_force":"gtc"}
+def submit_market_order(symbol,side,qty=None,notional=None,client_order_id=None):
+    payload={"symbol":symbol,"side":side.lower(),"type":"market","time_in_force":"gtc"}
+    if notional is not None:
+        if notional < 10:
+            raise ValueError("Alpaca notional must be at least $10.")
+        payload["notional"]=str(notional)
+    elif qty is not None:
+        payload["qty"]=str(qty)
+    else:
+        raise ValueError("Provide either qty or notional.")
     if client_order_id: payload["client_order_id"]=client_order_id
     return request("POST","/v2/orders",data=payload)

@@ -43,7 +43,7 @@ def scan_assets(assets, *, min_return_pct=0.1, sma_period=50, breakout_lookback=
             results.append(AssetResult(symbol,symbol,None,str(exc)))
     return results
 
-def run_auto_demo_cycle(assets, execute=False, max_orders=2, max_open_positions=5, min_return_pct=0.1, sma_period=50, breakout_lookback=20, journal_path=None, ai_decisions=None, ai_min_confidence=0.60, ai_analyzer=None, notifier=None, control=None):
+def run_auto_demo_cycle(assets, execute=False, max_orders=2, max_open_positions=5, min_return_pct=0.1, sma_period=50, breakout_lookback=20, journal_path=None, ai_decisions=None, ai_min_confidence=0.60, ai_analyzer=None, notifier=None, control=None, stop_loss_pct=1.5, take_profit_pct=3.0):
     global _AI_FAILURE_ALERT_ACTIVE
     if max_orders < 0 or max_open_positions < 0: raise ValueError("position/order limits must be non-negative")
     notifier=notifier or TelegramNotifier(); scanned=scan_assets(assets,min_return_pct=min_return_pct,sma_period=sma_period,breakout_lookback=breakout_lookback); executed=[]; skipped=[]; ai_failures=[]

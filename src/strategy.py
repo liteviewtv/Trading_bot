@@ -35,7 +35,12 @@ def generate_signal(symbol: str, bars: pd.DataFrame, sma_period: int = 20,
     close = float(latest["close"])
     sma = float(latest["sma"])
 
-    if close > sma and close >= sma * 1.005 and close > prior_high and day_return_pct >= min_return_pct:
+    buy_checks = [close > sma, close > prior_high, day_return_pct >= min_return_pct]
+    sell_checks = [close < sma, close < prior_low, day_return_pct <= -min_return_pct]
+
+    # Require two independent confirmations instead of all three. This keeps
+    # entries selective while avoiding long periods with no trades.
+    if sum(buy_checks) >= 2:
         return Signal(
             symbol=symbol,
             action="BUY",
@@ -44,7 +49,7 @@ def generate_signal(symbol: str, bars: pd.DataFrame, sma_period: int = 20,
                    f"return {day_return_pct:.2f}%, SMA distance {(close / sma - 1) * 100:.2f}%",
         )
 
-    if close < sma and close < prior_low and day_return_pct <= -min_return_pct:
+    if sum(sell_checks) >= 2:
         return Signal(
             symbol=symbol,
             action="SELL",

@@ -13,6 +13,8 @@
   "take_profit_pct": 3,
   "max_daily_loss_pct": 2,
   "min_return_pct": 0.75,
+  "breakout_margin_pct": 0.15,
+  "min_volume_ratio": 0.8,
   "sma_period": 50,
   "breakout_lookback": 20
 }

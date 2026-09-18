@@ -18,7 +18,7 @@ class Signal:
 
 def generate_signal(symbol: str, bars: pd.DataFrame, sma_period: int = 20,
                     breakout_lookback: int = 10, min_return_pct: float = 2.0,
-                    breakout_margin_pct: float = 0.15, min_volume_ratio: float = 0.8):
+                    breakout_margin_pct: float = 0.05, min_volume_ratio: float = 0.5):
     """Generate a BUY or SELL signal from momentum and recent breakouts."""
     if len(bars) < max(sma_period, breakout_lookback) + 1:
         return None
@@ -74,7 +74,7 @@ def generate_signal(symbol: str, bars: pd.DataFrame, sma_period: int = 20,
 
 def diagnose_signal(symbol: str, bars: pd.DataFrame, sma_period: int = 20,
                     breakout_lookback: int = 10, min_return_pct: float = 2.0,
-                    breakout_margin_pct: float = 0.15, min_volume_ratio: float = 0.8) -> str:
+                    breakout_margin_pct: float = 0.05, min_volume_ratio: float = 0.5) -> str:
     """Return a concise explanation of why the latest bar did not signal."""
     if len(bars) < max(sma_period, breakout_lookback) + 1:
         return f"insufficient bars ({len(bars)}/{max(sma_period, breakout_lookback) + 1})"

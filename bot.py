@@ -32,6 +32,9 @@ def main():
     interval = int(os.getenv("BOT_INTERVAL_SECONDS", "300"))
     max_orders = int(cfg.get("max_trades_per_cycle", 2))
     max_positions = int(cfg.get("max_concurrent_positions", 5))
+    min_return_pct = float(cfg.get("min_return_pct", 0.1))
+    sma_period = int(cfg.get("sma_period", 50))
+    breakout_lookback = int(cfg.get("breakout_lookback", 20))
     telegram = TelegramPollingBot()
     if telegram.configured:
         try:
@@ -54,6 +57,9 @@ def main():
                 execute=execute and not telegram.control.paused,
                 max_orders=max_orders,
                 max_open_positions=max_positions,
+                min_return_pct=min_return_pct,
+                sma_period=sma_period,
+                breakout_lookback=breakout_lookback,
                 control=telegram.control,
             )
             logging.info("Cycle %d: scanned=%d executed=%d skipped=%d", cycle, len(result.scanned), len(result.executed), len(result.skipped))
